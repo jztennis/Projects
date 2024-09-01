@@ -1,0 +1,20 @@
+Part 2:
+Grade: 1/2
+Comments: I didn't receive a project part 1 (proposal) from you, so I'm not 
+entirely sure what type of data you are using and what type of prediction
+you want to build a classifier to make. For the project, you will need to 
+have a main dataset and then another data set that can supplement the main
+one. The idea being that you would combine the two (using the combine) 
+function to create a large (wider) dataset. For this part, I was looking
+for information on what features you plan to use for building classifiers
+and some justification/explanation for why you would use them. This should 
+also be accompanied with multiple data visualizations. 
+
+Part 3: 
+Grade: 2/2 
+Comments: I'm a bit confused on what the goal of your project is and what 
+exactly it is you are trying to predict here. I think it would be better to
+focus on trying to predict a future match outcome (win/lose, set win/loss result)
+than looking at each individual statistic (I'm not sure what this is trying
+to do exactly). 
+
