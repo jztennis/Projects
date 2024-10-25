@@ -11,5 +11,3 @@ data learn - Functions needed to run proj successfully
 data util - Functions needed to run proj successfully
 
 decision tree - Functions needed to run proj successfully
-
-bowers_comments - Professor comments on progress at the time
