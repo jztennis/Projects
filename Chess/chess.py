@@ -56,14 +56,13 @@ class ChessBoard:
             return True
         
     def checkMove(self, move, color):
-        # print(ord(move[1]))
-        # Pawn?
+        # Pawn? MOVEMENT GOOD BUT CAN'T TAKE PIECES
         if move[0] == 'p':
             # Is it White's Move? (Values will always be 'W' or 'B' because it is from program rather than user)
             if color == 'W':
                 # not taking a piece
                 if move[1] == move[3]:
-                    print('Same file')
+                    # print('Same file')
                     if int(move[2]) == 2 and int(move[4]) < 5 and int(move[4]) > 2:
                         return True
                     else:
@@ -127,27 +126,34 @@ class ChessBoard:
                         return False
                 else:
                     return False
-        # Rook?
+        # Rook? COLUMN MOVEMENT IS GOOD, NEED TO DO ROW MOVEMENT
         elif move[0] == 'R':
             if move[1] == move[3] and move[2] < move[4]:
-                for i in range(8-int(move[2])):
-                    if i != int(move[2])-1:
-                        if i == int(move[4])-1:
+                for i in range(9-int(move[2])):
+                    if i+int(move[2]) != int(move[2]):
+                        if i+int(move[2]) == int(move[4]):
+                            print(1)
                             return True
-                        elif self.board[i+int(move[2])][ord(move[1])-97] != '':
+                        elif self.board[i+int(move[2])-1][ord(move[1])-97] != '':
+                            print(2)
                             return False
             elif move[1] == move[3] and move[2] > move[4]:
                 for i in range(int(move[2])):
-                    if int(move[2])-1-i != int(move[2])-1:
-                        if int(move[2])-1-i == int(move[4])-1:
+                    if int(move[2])-i != int(move[2]):
+                        if int(move[2])-i == int(move[4]):
+                            print(3)
                             return True
-                        elif self.board[int(move[2])-i][ord(move[1])-97] != '':
+                        elif self.board[int(move[2])-i-1][ord(move[1])-97] != '':
+                            print(4)
                             return False
             elif move[1] < move[3] and move[2] == move[4]:
-                pass
+                print(5)
+                return False
             elif move[1] > move[3] and move[2] == move[4]:
-                pass
+                print(6)
+                return False
             else:
+                print(8)
                 return False
         # Knight?
         elif move[0] == 'N':
