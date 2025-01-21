@@ -1,0 +1,12 @@
+https://app.utrsports.net/search?sportTypes=tennis,pickleball&type=players&startDate=01/17/2025&lat=47.16315729999999&lng=-122.0267787&utrFitPosition=6&utrMax=16&utrMin=1&utrTeamType=singles&utrType=verified&distance=10mi&locationInputValue=Buckley,%20WA,%20USA&location=Buckley,%20WA,%20USA
+https://app.utrsports.net/search?sportTypes=tennis,pickleball&type=players&startDate=01/17/2025&lat=47.6061389&lng=-122.3328481&utrFitPosition=6&utrMax=16&utrMin=1&utrTeamType=singles&utrType=verified&distance=10mi&locationInputValue=Seattle,%20WA,%20USA&location=Seattle,%20WA,%20USA
+https://app.utrsports.net/search?sportTypes=tennis,pickleball&startDate=01/17/2025&distance=10mi&utrMin=1&utrMax=16&utrType=verified&utrTeamType=singles&utrFitPosition=6&type=players&lat=39.7392358&lng=-104.990251&locationInputValue=Denver,%20CO,%20USA&location=Denver,%20CO,%20USA
+
+Notes:
+    startDate= CURRENT DATE
+    if filter then right before utrMin=... set up like this: &distance=10mi&
+    latitude and longitude matters
+
+
+https://app.utrsports.net/search?sportTypes=tennis,pickleball&type=players&startDate=01/18/2025&distance=10mi&lat=34.1139&lng=-118.4068&locationInputValue=Los%20Angeles,%20CA,%20USA&location=Los%20Angeles,%20CA,%20USA&utrFitPosition=6&utrMax=16&utrMin=1&utrTeamType=singles&utrType=verified
+https://app.utrsports.net/search?sportTypes=tennis,pickleball&type=players&startDate=01/18/2025&distance=10mi&lat=34.0549076&lng=-118.242643&locationInputValue=Los%20Angeles,%20CA,%20USA&location=Los%20Angeles,%20CA,%20USA&utrFitPosition=6&utrMax=16&utrMin=1&utrTeamType=singles&utrType=verified

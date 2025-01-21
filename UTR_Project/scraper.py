@@ -1,58 +1,90 @@
-# import requests
-# import numpy as np
-# from bs4 import BeautifulSoup
-
-# # Making a GET request
-# r = requests.get('https://app.utrsports.net/search?sportTypes=tennis,pickleball&startDate=08/04/2024&distance=10mi&utrMin=1&utrMax=16&utrType=verified&utrTeamType=singles&utrFitPosition=6&type=players&lat=47.16315729999999&lng=-122.0267787&locationInputValue=Buckley,%20WA,%20USA&location=Buckley,%20WA,%20USA')
-
-# # Parsing the HTML
-# soup = BeautifulSoup(r.content, 'html.parser')
-# print(soup.prettify())
-# print(soup)
-
-# s = soup.find('div', style_='z-index: initial;')
-# print(s)
-# content = s.find_all('div')
-
-# print(content)
-
-import requests
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service as ChromeService
 from bs4 import BeautifulSoup
+import time
+import csv
+from datetime import date
 
-def get_utr_rating(player_name):
-    # URL of the UTR player search page (Note: this URL may not be correct and is used for illustrative purposes)
-    search_url = "https://app.utrsports.net/search?sportTypes=tennis,pickleball&startDate=08/29/2024&distance=10mi&utrMin=1&utrMax=16&utrType=verified&utrTeamType=singles&utrFitPosition=6&type=players&locationInputValue=Buckley,%20WA,%20USA&location=Buckley,%20WA,%20USA&lat=47.16315729999999&lng=-122.0267787"
+### Get UTR Rating ###
+def get_utr_rating(df):
+    start = time.time()
+    # Initialize the Selenium WebDriver (make sure you have the appropriate driver installed)
+    driver = webdriver.Chrome()
 
-    # Make a request to the UTR site
-    response = requests.get(search_url)
-    
-    # Check if the request was successful
-    if response.status_code != 200:
-        print("Failed to retrieve the page")
-        return None
+    count = 0
+    with open('utr_data.csv', 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(['Name', 'Gender', 'Nationality', 'UTR_S', 'UTR_D'])
 
-    # Parse the page content
-    soup = BeautifulSoup(response.text, 'html.parser')
+        for i in range(len(df)):
+            search_url = edit_url(df['city'][i+1], df['state_id'][i+1], df['lat'][i+1], df['lng'][i+1])
+            if count > 0:
+                break
+            count += 1
 
-    # Find the player's UTR rating (this selector is illustrative and may need adjustment)
-    player_div = soup.find('div', class_ = "value text-lighter")  # Example class name
-    print(player_div)
-    if player_div:
-        rating_span = player_div.find('span', class_='utr-rating')  # Example class name
-        if rating_span:
-            rating = rating_span.text.strip()
-            return rating
-        else:
-            print("Rating not found")
-            return None
-    else:
-        print("Player not found")
-        return None
+            driver.get(search_url)
 
-# Example usage
-player_name = "Jared Zaugg"  # Replace with the name of the player you're searching for
-rating = get_utr_rating(player_name)
-# if rating:
-#     print(f"{player_name}'s UTR rating is: {rating}")
-# else:
-#     print("Could not retrieve UTR rating")
+            scroll_count = 5
+
+            for _ in range(scroll_count):
+                driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                time.sleep(0.5) # Wait for the new results to load
+
+            # Now that the page is rendered, parse the page with BeautifulSoup
+            soup = BeautifulSoup(driver.page_source, 'html.parser')
+
+            # Find the UTR rating using an appropriate selector
+            results = soup.find_all("div", class_="search__resultContainer__IxGRs")
+            print(results)
+
+            data = []
+            i = 0
+            for result in results:
+                data.append([result.find("div", class_ = "name show-ellipsis").text])
+                temp_places = result.find("span", class_ = "show-ellipsis d-block").text
+                data[i].append(temp_places[0])
+                data[i].append(temp_places[4:])
+                # data[i].append(result.find("div", class_ = "value").text)
+                verified = result.find_all("div", class_ = "value")
+                # potential = result.find_all("div", class_ = "value text-lighter")
+                # print(verified)
+                # print(potential)
+
+                no_utr = True
+                utr_count = 0
+                for j in range(len(verified)):
+                    try:
+                        # print(verified[j].text)
+                        int(verified[j].text[0])
+                        data[i].append(verified[j].text[:-1])
+                        if utr_count == 1:
+                            break
+                        utr_count += 1
+                        no_utr = True
+                    except:
+                        data[i].append('')
+                    if verified[j].text is not None:
+                        data[i].append(verified[j].text[:-1])
+                    
+
+                if no_utr:
+                    data[i].append('')
+                    data[i].append('')
+                i += 1
+
+            writer.writerows(data)
+
+    # Close the driver
+    driver.quit()
+
+    end = time.time()
+    print(f"Runtime: {round(end-start, 2)}s")
+###
+
+def edit_url(city, state, lat, long):
+    d = str(date.today())
+    d.replace('-', '/')
+
+    url = f'https://app.utrsports.net/search?sportTypes=tennis,pickleball&startDate={d}&distance=10mi&utrMin=1&utrMax=16&utrType=verified&utrTeamType=singles&utrFitPosition=6&type=players&lat={lat}&lng={long}&locationInputValue={city},%20{state},%20USA&location={city},%20{state},%20USA' # initliaze url
+
+    return url
