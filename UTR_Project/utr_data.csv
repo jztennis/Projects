@@ -1,21 +1,21 @@
 Name,Gender,Nationality,UTR_S,UTR_D
-Patrick Zahraj,M,"Frankfurt, HE",13.78,13.78,13.21,,
-Nathan Barki,M,"Beverly Hills, CA",,,,
-Justin Barki,M,"Jakarta, Jakarta",13.28,13.28,13.37*,,
-Timothy Li,M,UCLA,,P,,
-Morgan Mays,M,"Santa Monica, CA",,,,
-David Martirosian,M,Utah State University,,,,
-Alex Jones,M,"Marina Del Rey, CA",12.23,12.23,12.66,,
-Nischal Spurling,M,ICL Academy,,,,
-Liam Oliver Toroman ,M,"Los Angeles, CA",,,,
-James Macdonald,M,Harvard University,,,,
-Elsa Jacquemot,F,"Beverly Hills, CA",11.73,11.73,11.27,,
-Jack Mcgary,M,Cal Poly,,,,
-Andrei Crabel,M,"Beverly Hills, CA",,,,
-Phillip Otero,M,"Los Angeles, CA",,,,
-Josh Friedman,M,"Los Angeles, CA",,,,
-Pat Otero,M,University of Chicago,,,,
-Nikola Kuraica,M,"Santa Monica, CA",,,,
-Amrith Kodumuri,M,"Burbank, CA",,,,
-Andrew Ong,M,"Los Angeles, CA",,,,
-Giuliana Olmos,F,"Santa Monica, CA",,,,
+Patrick Zahraj,M,"Frankfurt, HE",13.78,13.21
+Justin Barki,M,"Jakarta, Jakarta",13.28,13.37*
+Timothy Li,M,UCLA,13.xx,12.xx
+Morgan Mays,M,"Santa Monica, CA",12.xx,10.xx
+David Martirosian,M,Utah State University,12.xx,12.xx
+Alex Jones,M,"Marina Del Rey, CA",12.23,12.68
+Nischal Spurling,M,ICL Academy,11.xx,11.xx
+Liam Oliver Toroman ,M,"Los Angeles, CA",11.xx
+James Macdonald,M,Harvard University,11.xx,11.xx
+Elsa Jacquemot,F,"Beverly Hills, CA",11.73,11.27
+Jack Mcgary,M,Cal Poly,11.xx,10.xx
+Andrei Crabel,M,"Beverly Hills, CA",11.xx,12.xx
+Phillip Otero,M,"Los Angeles, CA",11.xx,11.xx
+Josh Friedman,M,"Los Angeles, CA",11.xx,8.xx
+Pat Otero,M,University of Chicago,11.xx,11.xx
+Amrith Kodumuri,M,"Burbank, CA",10.xx,10.xx
+Nikola Kuraica,M,"Santa Monica, CA",10.xx,11.xx
+Andrew Ong,M,"Los Angeles, CA",10.xx,9.xx
+Giuliana Olmos,F,"Santa Monica, CA",10.xx,11.xx
+Brodie Young,M,"Los Angeles, CA",10.xx
