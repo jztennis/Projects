@@ -11,6 +11,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.common.keys import Keys
 from webdriver_manager.chrome import ChromeDriverManager
+import numpy as np
 
 '''
 NOTES:
@@ -51,8 +52,44 @@ def edit_url(city, state, lat, long):
     return url
 ###
 
+### Formats Match Scores ###
+def collect_scores(all_scores):
+    score = ''
+    p1_games = 0
+    p2_games = 0
+    for i in range(int(len(all_scores) / 2)):
+        if len(all_scores[i].text) == 1:
+            score = score + all_scores[i].text + '-' + all_scores[i+(int(len(all_scores) / 2))].text + ' '
+            p1_games += int(all_scores[i].text)
+            p2_games += int(all_scores[i+(int(len(all_scores) / 2))].text)
+        else:
+            score = score + all_scores[i].text[0] + '-' + all_scores[i+(int(len(all_scores) / 2))].text[0] + ' '
+            p1_games += int(all_scores[i].text[0])
+            p2_games += int(all_scores[i+int(len(all_scores) / 2)].text[0])
+    score = score[:-1]
+    return score, p1_games, p2_games
+###
+
+### Loads The Page ###
+def load_page(driver, url):
+    driver.get(url)
+    time.sleep(1)
+###
+
+### Scrolls The Page ###
+def scroll_page(driver):
+    previous_height = driver.execute_script("return document.body.scrollHeight")
+    while True:
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        time.sleep(0.5)
+        new_height = driver.execute_script("return document.body.scrollHeight")
+        if new_height == previous_height:
+            break
+        previous_height = new_height
+###
+
 ### Get UTR Rating ###
-def get_utr_rating(df, email, password, offset=0, stop=1):
+def get_utr_rating(df, email, password, offset=0, stop=1, writer=None):
     # Initialize the Selenium WebDriver (make sure you have the appropriate driver installed)
     driver = webdriver.Chrome()
     url = 'https://app.utrsports.net/'
@@ -63,72 +100,57 @@ def get_utr_rating(df, email, password, offset=0, stop=1):
     count = 0
     date_today = str(date.today())
 
-    csvfile = open('utr_data.csv', 'a', newline='', encoding='utf-8')
-
-    writer = csv.writer(csvfile)
-    # writer.writerow(['Name', 'Gender', 'Nationality', 'UTR_S', 'UTR_D', 'Pull_Date'])
-
     for i in range(len(df)):
         search_url = edit_url(df['city'][i+offset], df['state_id'][i+offset], df['lat'][i+offset], df['lng'][i+offset])
         if count > stop-1: # num of pages to scrape -1
             break
         count += 1
 
-        driver.get(search_url)
+        load_page(driver, search_url)
 
-        scroll_count = 5 # num of scrolls to load page
-
-        # scroll the page
-        for _ in range(scroll_count):
-            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(0.5) # Wait for the new results to load
+        scroll_page(driver)
 
         # Now that the page is rendered, parse the page with BeautifulSoup
         soup = BeautifulSoup(driver.page_source, 'html.parser')
-
-        # Find the UTR rating using an appropriate selector
         results = soup.find_all("div", class_="search__resultContainer__IxGRs")
 
-        data = []
-        k = 0
         for result in results:
-            data.append([result.find("div", class_ = "name show-ellipsis").text]) # player name
+            data_row = [result.find("div", class_="name show-ellipsis").text]
             temp_places = result.find("span", class_ = "show-ellipsis d-block").text
-            data[k].append(temp_places[0]) # player gender
-            data[k].append(temp_places[4:]) # player location
             verified = result.find_all("div", class_ = "value") # player UTRs
+
+            data_row += [temp_places[0], temp_places[4:]]
 
             utr_count = 0
             num = 0
             for j in range(len(verified)):
-                try: # nums could be 11.xx so try except is needed
+                try:
                     int(verified[j].text[0])
                     num += 1
-                    if verified[j].text[:-1] not in data[k] or num == 2:
+                    if verified[j].text[:-1] not in data_row or num == 2:
                         if utr_count != 2:
-                            data[k].append(verified[j].text[:-1])
+                            data_row += [verified[j].text[:-1]]
                             utr_count += 1
                         else:
                             break
                     if utr_count == 2:
                         break
-                except: # not a number
+                except:
                     if utr_count == 2:
                         break
-                    data[k].append('') # utr is blank here
+                    data_row += ['']
                     utr_count += 1
 
-            data[k].append(date_today)
-            k += 1
+            data_row += [date_today]
 
-        writer.writerows(data) # write to utr_data.csv
+            writer.writerow(data_row)
 
     # Close the driver
     driver.quit()
 ###
 
 ### Get UTR Rating Tester Function ###
-def get_utr_rating_test(df, email, password, offset=0, stop=1):
+def get_utr_rating_test(df, email, password, offset=0, stop=1, writer=None):
     # Initialize the Selenium WebDriver (make sure you have the appropriate driver installed)
     driver = webdriver.Chrome()
     url = 'https://app.utrsports.net/'
@@ -138,11 +160,6 @@ def get_utr_rating_test(df, email, password, offset=0, stop=1):
     # CONFIG:
     count = 0
     date_today = str(date.today())
-
-    csvfile = open('data_test.csv', 'a', newline='', encoding='utf-8')
-
-    writer = csv.writer(csvfile)
-    # writer.writerow(['Name', 'Gender', 'Nationality', 'UTR_S', 'UTR_D', 'Pull_Date'])
 
     for i in range(len(df)):
         search_url = edit_url(df['city'][i+offset], df['state_id'][i+offset], df['lat'][i+offset], df['lng'][i+offset])
@@ -150,158 +167,181 @@ def get_utr_rating_test(df, email, password, offset=0, stop=1):
             break
         count += 1
 
-        driver.get(search_url)
+        load_page(driver, search_url)
 
-        scroll_count = 5 # num of scrolls to load page
+        scroll_page(driver)
 
-        # scroll the page
-        for _ in range(scroll_count):
-            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(0.5) # Wait for the new results to load
-
-        # Now that the page is rendered, parse the page with BeautifulSoup
+        # Now that the page is loaded, get the containers
         soup = BeautifulSoup(driver.page_source, 'html.parser')
-
-        # Find the UTR rating using an appropriate selector
         results = soup.find_all("div", class_="search__resultContainer__IxGRs")
 
-        data = []
-        k = 0
         for result in results:
-            data.append([result.find("div", class_ = "name show-ellipsis").text]) # player name
+            data_row = [result.find("div", class_="name show-ellipsis").text]
             temp_places = result.find("span", class_ = "show-ellipsis d-block").text
-            data[k].append(temp_places[0]) # player gender
-            data[k].append(temp_places[4:]) # player location
             verified = result.find_all("div", class_ = "value") # player UTRs
+
+            data_row += [temp_places[0], temp_places[4:]]
 
             utr_count = 0
             num = 0
             for j in range(len(verified)):
-                try: # nums could be 11.xx so try except is needed
+                try:
                     int(verified[j].text[0])
                     num += 1
-                    if verified[j].text[:-1] not in data[k] or num == 2:
+                    if verified[j].text[:-1] not in data_row or num == 2:
                         if utr_count != 2:
-                            data[k].append(verified[j].text[:-1])
+                            data_row += [verified[j].text[:-1]]
                             utr_count += 1
                         else:
                             break
                     if utr_count == 2:
                         break
-                except: # not a number
+                except:
                     if utr_count == 2:
                         break
-                    data[k].append('') # utr is blank here
+                    data_row += ['']
                     utr_count += 1
 
-            data[k].append(date_today)
-            k += 1
+            data_row += [date_today]
 
-        writer.writerows(data) # write to utr_data.csv
+            writer.writerow(data_row)
 
     # Close the driver
     driver.quit()
 ###
 
 ### Get UTR Rating ###
-def scrape_player_utr(df, email, password, stop=1):
+def scrape_player_utr(df, email, password, offset=0, stop=1, writer=None):
     # Initialize the Selenium WebDriver (make sure you have the appropriate driver installed)
     driver = webdriver.Chrome()
     url = 'https://app.utrsports.net/'
 
     sign_in(driver, url, email, password)
 
-    # CONFIG:
     count = 0
     date_today = str(date.today())
 
-    csvfile = open('player_data.csv', 'w', newline='', encoding='utf-8')
-
-    writer = csv.writer(csvfile)
-    writer.writerow(['tourney_date', 'p1_name', 'p1_utr', 'p2_name', 'p2_utr', 'score', 'p1_games_won', 'p2_games_won', 'winner'])
-
     for i in range(len(df)):
-        if count > stop - 1: # num of pages to scrape -1
+        if count > stop - 1:
             break
         count += 1
 
-        search_url = f"https://app.utrsports.net/search?query={df['Name'][i+9][:-3]}%20{df['Name'][i+9][-2]}&sportTypes=tennis,pickleball&startDate={date_today}&utrMin=1&utrMax=16&utrType=verified&utrTeamType=singles&utrFitPosition=6&type=players&lat=47.16315729999999&lng=-122.0267787"
+        search_url = f"https://app.utrsports.net/search?query={df['Name'][i+offset][:-3]}%20{df['Name'][i+offset][-2]}&sportTypes=tennis,pickleball&startDate={date_today}&utrMin=1&utrMax=16&utrType=verified&utrTeamType=singles&utrFitPosition=6&type=players&lat=47.16315729999999&lng=-122.0267787"
 
+        load_page(driver, search_url)
 
-        driver.get(search_url)
-
-        temp = True
         try: # Player Exists
-            time.sleep(1)
             player = driver.find_element(By.XPATH, '//*[@id="myutr-app-body"]/div[1]/div[3]/div[2]/div[2]/div[2]/a')
             player.click()
             time.sleep(2)
 
         except: # Player Does Not Exist (Throws Error)
-            temp = False
+            continue
             
-        if temp:
-            scroll_count = 5 # num of scrolls to load page
+        scroll_page(driver)
 
-            # scroll the page
-            for _ in range(scroll_count):
-                driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-                time.sleep(0.5) # Wait for the new results to load
+        # Now that the page is rendered, parse the page with BeautifulSoup
+        soup = BeautifulSoup(driver.page_source, 'html.parser')
+        tournaments = soup.find_all("div", class_="eventItem__eventItem__2Xpsd")
 
-            # Now that the page is rendered, parse the page with BeautifulSoup
-            soup = BeautifulSoup(driver.page_source, 'html.parser')
-
-            data = []
-            z = 0
-            tournaments = soup.find_all("div", class_="eventItem__eventItem__2Xpsd")
+        '''
+        try except fixes: "AttributeError: 'NoneType' object has no attribute 'text'"
+        '''
+        try:
             name_ref = soup.find("h1", class_="headerV3__playerName__1mnMa").text
-            for tourney in tournaments:
-                tourney_start_date = tourney.find("div", class_="col-5 col-md-3 eventItem__eventTime__3U8ST").text
-                tourney_start_date = tourney_start_date[:6]
-                matches = tourney.find_all("div", class_="d-none d-md-block")
-                for match in matches:
-                    data.append([tourney_start_date])
-                    winner_name = match.find("a", class_="flex-column player-name winner").text
+        except:
+            name_ref = driver.find_element(By.XPATH, '//*[@id="myutr-app-body"]/div/div[1]/div[1]/div/div/div/div[1]/div[1]/div[2]/h1').text
+
+        '''
+        For each tournament, grab the data specified from each match in the tournament.
+        Rework some data based on winners vs losers and errors that need exceptions.
+        '''
+        for tourney in tournaments:
+            tourney_start_date = tourney.find("div", class_="col-5 col-md-3 eventItem__eventTime__3U8ST").text[:6]
+            matches = tourney.find_all("div", class_="d-none d-md-block")
+
+            for match in matches:
+                data_row = [tourney_start_date]
+                is_tie = False
+
+                try:
+                    winner_name = match.find("a", class_="flex-column player-name winner").text # throws error when TIE (COLLEGE MATCHES)
                     loser_name = match.find("a", class_="flex-column player-name").text
-                    utrs = match.find_all("div", class_="utr")
-                    all_scores = match.find_all("div", "score-item")
-                    score = ''
-                    p1_games = 0
-                    p2_games = 0
-                    for i in range(int(len(all_scores) / 2)):
-                        if len(all_scores[i].text) == 1:
-                            score = score + all_scores[i].text + '-' + all_scores[i+(int(len(all_scores) / 2))].text + ' '
-                            p1_games += int(all_scores[i].text)
-                            p2_games += int(all_scores[i+(int(len(all_scores) / 2))].text)
-                        else:
-                            score = score + all_scores[i].text[0] + '(' + all_scores[i].text[1:] + ')-' + all_scores[i+(int(len(all_scores) / 2))].text[0] + '(' + all_scores[i+(int(len(all_scores) / 2))].text[1:] + ') '
-                            p1_games += int(all_scores[i].text[0])
-                            p2_games += int(all_scores[i+int(len(all_scores) / 2)].text[0])
-                    score = score[:-1]
+                except:
+                    tie = match.find_all("a", class_="flex-column player-name")
+                    winner_name, loser_name = tie[0].text, tie[1].text
+                    is_tie = True
 
-                    if winner_name == name_ref:     # profile player won
-                        data[z].append(winner_name)
-                        data[z].append(utrs[0].text[:-1])
-                        data[z].append(loser_name)
-                        data[z].append(utrs[1].text[:-1])
-                        data[z].append(p1_games)
-                        data[z].append(p2_games)
-                        data[z].append(score)
-                        data[z].append(0)
-                    else:                           # profile player lost
-                        data[z].append(loser_name)
-                        data[z].append(utrs[0].text[:-1])
-                        data[z].append(winner_name)
-                        data[z].append(utrs[1].text[:-1])
-                        data[z].append(p1_games)
-                        data[z].append(p2_games)
-                        data[z].append(score)
-                        data[z].append(1)
+                utrs = match.find_all("div", class_="utr")
+                all_scores = match.find_all("div", "score-item")
+                score, p1_games, p2_games = collect_scores(all_scores)
+                score = score if score else 'W'
 
-                    z += 1
+                if winner_name == name_ref:
+                    data_row += [winner_name, utrs[0].text[:-1], loser_name, utrs[1].text[:-1], p1_games, p2_games, score, 1]
+                else:
+                    data_row += [loser_name, utrs[0].text[:-1], winner_name, utrs[1].text[:-1], p1_games, p2_games, score, 0]
 
+                if is_tie:
+                    data_row[-1] = 0.5  # Mark ties properly
 
-            writer.writerows(data)
+                writer.writerow(data_row)
+
+    # Close the driver
+    driver.quit()
+###
+
+### Get UTR History ###
+def scrape_utr_history(df, email, password, offset=0, stop=1, writer=None):
+    # Initialize the Selenium WebDriver (make sure you have the appropriate driver installed)
+    driver = webdriver.Chrome()
+    url = 'https://app.utrsports.net/'
+
+    sign_in(driver, url, email, password)
+
+    for i in range(len(df)):
+        if i == stop:
+            break
+        
+        try:
+            search_url = f"https://app.utrsports.net/profiles/{round(df['p_id'][i+offset])}?t=6"
+        except:
+            continue
+
+        load_page(driver, search_url)
+
+        scroll_page(driver)
+
+        try:
+            time.sleep(1)
+            show_all = driver.find_element(By.LINK_TEXT, 'Show all')
+            show_all.click()
+        except:
+            continue
+
+        time.sleep(1)
+
+        scroll_page(driver)
+
+        # Now that the page is rendered, parse the page with BeautifulSoup
+        soup = BeautifulSoup(driver.page_source, 'html.parser')
+
+        container = soup.find("div", class_="newStatsTabContent__section__1TQzL p0 bg-transparent")
+        
+        utrs = container.find_all("div", class_="row")
+        
+        for j in range(len(utrs)):
+            if j == 54:
+                break
+            if j == 0:
+                continue
+            # recent_results = True
+            utr = utrs[j].find("div", class_="newStatsTabContent__historyItemRating__GQUXw").text
+            utr_date = utrs[j].find("div", class_="newStatsTabContent__historyItemDate__jFJyD").text
+
+            data_row = [df['f_name'][i+offset], df['l_name'][i+offset], utr_date, utr]
+
+            writer.writerow(data_row)
 
     # Close the driver
     driver.quit()
