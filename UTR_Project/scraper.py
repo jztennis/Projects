@@ -33,7 +33,7 @@ def sign_in(driver, log_in_url, email, password):
 
     email_box = driver.find_element(By.ID, 'emailInput')
     password_box = driver.find_element(By.ID, 'passwordInput')
-    login_button = driver.find_element(By.XPATH, '//*[@id="myutr-app-body"]/div/div/div/div/div/div[2]/form/div[3]/button')
+    login_button = driver.find_element(By.CSS_SELECTOR, 'button.btn.btn-primary.btn-xl.btn-block')
 
     email_box.send_keys(email) # enter email here
     password_box.send_keys(password) # enter password here
@@ -310,6 +310,8 @@ def scrape_utr_history(df, email, password, offset=0, stop=1, writer=None):
 
         load_page(driver, search_url)
 
+        time.sleep(0.25)
+
         scroll_page(driver)
 
         try:
@@ -317,7 +319,13 @@ def scrape_utr_history(df, email, password, offset=0, stop=1, writer=None):
             show_all = driver.find_element(By.LINK_TEXT, 'Show all')
             show_all.click()
         except:
-            continue
+            try:
+                time.sleep(2)
+                show_all = driver.find_element(By.LINK_TEXT, 'Show all')
+                show_all.click()
+            except:
+                print(f"{df['f_name'][i]} | {df['l_name'][i]} | {df['p_id'][i]}")
+                continue
 
         time.sleep(1)
 
@@ -331,11 +339,8 @@ def scrape_utr_history(df, email, password, offset=0, stop=1, writer=None):
         utrs = container.find_all("div", class_="row")
         
         for j in range(len(utrs)):
-            if j == 54:
-                break
             if j == 0:
                 continue
-            # recent_results = True
             utr = utrs[j].find("div", class_="newStatsTabContent__historyItemRating__GQUXw").text
             utr_date = utrs[j].find("div", class_="newStatsTabContent__historyItemDate__jFJyD").text
 
