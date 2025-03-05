@@ -8,6 +8,8 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 import random
 from colorama import Fore, Style, init
+import joblib
+from model import LogitRegression
 
 '''
 MODELS TESTED:
@@ -15,58 +17,6 @@ MODELS TESTED:
  - Logistic Regression via Scikit Learn     | Unable to assign proportion (only 0 or 1)
  - Random Forests via Scikit Learn          | Unable to assign proportion (only 0 or 1)
 '''
-
-class LogitRegression(LinearRegression):
-
-    def fit(self, x, p):
-        p = np.asarray(p)
-        y = np.log(p / (1 - p))
-        return super().fit(x, y)
-
-    def predict(self, x):
-        y = super().predict(x)
-        return 1 / (np.exp(-y) + 1)
-    
-    def score(self, utr_diff, best_of):
-        prop = self.predict([[utr_diff]])[0][0]
-        score = ''
-        sets_won = 0
-        num_sets = 0
-        for _ in range(best_of):
-            p1_games = 0
-            p2_games = 0
-            done = True
-            while done:
-                if p1_games == 6 and p2_games < 5 or p2_games == 6 and p1_games < 5:
-                    break
-                elif p1_games == 7 or p2_games == 7:
-                    break
-                val = random.uniform(0,1)
-                if val < prop:
-                    p1_games += 1
-                else:
-                    p2_games += 1
-
-            num_sets += 1
-            if p1_games > p2_games:
-                sets_won += 1
-            else:
-                sets_won -= 1
-            score = score + str(p1_games) + '-' + str(p2_games) + ' '
-            if abs(sets_won) == round(best_of/3)+1:
-                break
-            elif abs(sets_won) == 2 and num_sets > 2:
-                break
-        score = score[:-1]
-        return score
-
-    def profile(self, data):
-        profile = []
-
-        for i in range(len(data)):
-            pass
-
-        return profile
 
 def get_player_profiles(data, history, p1, p2):
     player_profiles = {}
@@ -76,13 +26,53 @@ def get_player_profiles(data, history, p1, p2):
             if player == p1 or player == p2:
                 utr_diff = data['p1_utr'][i] - data['p2_utr'][i] if data['p1'][i] == player else data['p2_utr'][i] - data['p1_utr'][i]
                 
-                if player not in player_profiles:
+                if player not in player_profiles and player in history:
                     player_profiles[player] = {
                         "win_vs_lower": [],
                         "win_vs_higher": [],
                         "recent10": [],
-                        "utr": history[player]['utr']
+                        "utr": history[player]['utr'],
+                        "h2h": {}
                     }
+                elif player not in player_profiles:
+                    player_profiles[player] = {
+                        "win_vs_lower": [],
+                        "win_vs_higher": [],
+                        "recent10": [],
+                        "utr": data['p1_utr'][i] if data['p1'][i] == player else data['p2_utr'][i],
+                        "h2h": {}
+                    }
+
+                if opponent not in player_profiles and opponent in history:
+                    player_profiles[opponent] = {
+                        "win_vs_lower": [],
+                        "win_vs_higher": [],
+                        "recent10": [],
+                        "utr": history[opponent]['utr'],
+                        "h2h": {}
+                    }
+                elif opponent not in player_profiles:
+                    player_profiles[opponent] = {
+                        "win_vs_lower": [],
+                        "win_vs_higher": [],
+                        "recent10": [],
+                        "utr": data['p1_utr'][i] if data['p1'][i] == opponent else data['p2_utr'][i],
+                        "h2h": {}
+                    }
+
+                if opponent not in player_profiles[player]['h2h']:
+                    player_profiles[player]['h2h'][opponent] = [0,0]
+                if player not in player_profiles[opponent]['h2h']:
+                    player_profiles[opponent]['h2h'][player] = [0,0]
+
+                if data['winner'][i] == player:
+                    player_profiles[player]['h2h'][opponent][0] += 1
+                    player_profiles[player]['h2h'][opponent][1] += 1
+                    player_profiles[opponent]['h2h'][player][1] += 1
+                else:
+                    player_profiles[player]['h2h'][opponent][1] += 1
+                    player_profiles[opponent]['h2h'][player][0] += 1
+                    player_profiles[opponent]['h2h'][player][1] += 1
                 
                 # Record win rates vs higher/lower-rated opponents
                 if utr_diff > 0:  # Player faced a lower-rated opponent
@@ -112,34 +102,29 @@ def get_player_history(utr_history):
             history[utr_history['l_name'][i]+' '+utr_history['f_name'][i][0]+'.'] = {
                 'utr': utr_history['utr'][i]
             }
-
     return history
 
-def get_score(players):
-    utr_diff = []
+def get_score(players, player_profiles, best_of=3):
+    utr_diff = [player_profiles[players[0]]["utr"]-player_profiles[players[1]]["utr"], player_profiles[players[1]]["utr"]-player_profiles[players[0]]["utr"]]
     for j in range(len(players)):
-        if j == 0:
-            utr_diff.append(player_profiles[players[j]]["utr"]-player_profiles[players[j+1]]["utr"])
-        else:
-            utr_diff.append(player_profiles[players[j]]["utr"]-player_profiles[players[j-1]]["utr"])
 
-        try:
-            if utr_diff[j] > 0:
-                utr_diff[j] *= (1 - player_profiles[players[j]]["win_vs_lower"])
-            elif utr_diff[j] < 0:
-                utr_diff[j] /= (1 + player_profiles[players[j]]["win_vs_higher"])
-        except:
-            pass
+        utr_diff[j] += 0.1*player_profiles[players[j]]["recent10"]
 
-        try:
-            utr_diff[j] += player_profiles[players[j]]["recent10"]
-        except:
-            pass
+        if utr_diff[j] > 0:
+            utr_diff[j] *= (1.2 - player_profiles[players[j]]["win_vs_lower"])
+        elif utr_diff[j] < 0:
+            utr_diff[j] *= (1 + player_profiles[players[j]]["win_vs_higher"])
+        
+        if j == 0 and players[j+1] in player_profiles[players[j]]['h2h']:
+            utr_diff[j] *= ((0.5+player_profiles[players[j]]['h2h'][ps[j+1]][0] / player_profiles[players[j]]['h2h'][players[j+1]][1])**0.4)
+        elif j ==1 and players[j-1] in player_profiles[players[j]]['h2h']:
+            utr_diff[j] *= ((0.5+player_profiles[players[j]]['h2h'][ps[j-1]][0] / player_profiles[players[j]]['h2h'][players[j-1]][1])**0.4)
+
     utr_diff[1] = -utr_diff[1]
     utr_diff = np.mean(utr_diff)
-    utr_diff *= 0.6
+    utr_diff *= 0.8
 
-    score = model.score(utr_diff, 5)
+    score = model.score(utr_diff, best_of)
 
     p1_games = 0
     p2_games = 0
@@ -157,7 +142,7 @@ def get_score(players):
     else:
         p1_win = False
 
-    game_prop = round(p1_games / (p1_games+p2_games), 4)
+    game_prop = p1_games / (p1_games+p2_games)
 
     return score, p1_win, game_prop
 
@@ -165,29 +150,20 @@ def get_score(players):
 data = pd.read_csv('atp_utr_tennis_matches.csv')
 utr_history = pd.read_csv('utr_history.csv')
 
-# random.seed(30)
-
-x = np.empty(1)
-for i in range(len(data)):
-    x = np.append(x, data['p1_utr'][i]-data['p2_utr'][i])
-
-x = x.reshape(-1,1)
-
-p = np.tanh(x) / 2 + 0.5
-model = LogitRegression()
-model.fit(0.9*x, p)
+model = joblib.load('model.sav')
 
 p1 = "Medvedev D."
 p2 = "Alcaraz C."
 ps = [p1, p2]
+best = 5
 history = get_player_history(utr_history)
 player_profiles = get_player_profiles(data, history, ps[0], ps[1])
 
-score, p1_win, game_prop = get_score(ps)
+score, p1_win, game_prop = get_score(ps, player_profiles, best_of=best)
 if p1_win:
-    print(f'{p1} is predicted to win ({100*game_prop}% of games) against {p2}: ', end='')
+    print(f'{p1} is predicted to win ({round(100*game_prop,2)}% of games) against {p2}: ', end='')
 else:
-    print(f'{p1} is predicted to lose ({100*(1-game_prop)}% of games) against {p2}:  ', end='')
+    print(f'{p1} is predicted to lose ({round(100*(1-game_prop),2)}% of games) against {p2}:  ', end='')
 for i in range(len(score)):
     if i % 4 == 0 and int(score[i]) > int(score[i+2]):
         print(Fore.GREEN + score[i], end='')
