@@ -22,6 +22,7 @@ class LogitRegression(LinearRegression):
 
     def fit(self, x, p):
         p = np.asarray(p)
+        # p = np.clip(p, 1e-6, 1 - 1e-6)  # Clip to avoid math errors
         y = np.log(p / (1 - p))
         return super().fit(x, y)
 
@@ -29,7 +30,7 @@ class LogitRegression(LinearRegression):
         y = super().predict(x)
         return 1 / (np.exp(-y) + 1)
     
-    def score(self, utr_diff, best_of):
+    def score(self, utr_diff, best_of, var):
         prop = self.predict([[utr_diff]])[0][0]
         score = ''
         sets_won = 0
@@ -43,8 +44,9 @@ class LogitRegression(LinearRegression):
                     break
                 elif p1_games == 7 or p2_games == 7:
                     break
-                val = random.uniform(0,1)
-                if val < prop:
+                val = np.random.normal(loc=prop,scale=var)
+                val = np.clip(val, 0, 1)
+                if val > 0.5:
                     p1_games += 1
                 else:
                     p2_games += 1
