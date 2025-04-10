@@ -1,88 +1,103 @@
-import pandas as pd
-import csv
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LogisticRegression
-from sklearn import metrics
-from sklearn.metrics import classification_report
 import numpy as np
-from sklearn.linear_model import LinearRegression
-import random
-from colorama import Fore, Style, init
+import pandas as pd
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from torch.utils.data import DataLoader, TensorDataset
 import joblib
+from network import get_player_profiles, get_player_history, preprocess_match_data
+from sklearn.metrics import accuracy_score
 
+# Define the neural network architecture
+class TennisPredictor(nn.Module):
+    def __init__(self, input_size):
+        super(TennisPredictor, self).__init__()
+        self.fc1 = nn.Linear(input_size, 64)
+        self.fc2 = nn.Linear(64, 32)
+        self.fc3 = nn.Linear(32, 1)
+        self.relu = nn.ReLU()
+        self.sigmoid = nn.Sigmoid()
 
-'''
-MODELS TESTED:
- - Pseudo Logistic Regression Using tanh()  | Current Version
- - Logistic Regression via Scikit Learn     | Unable to assign proportion (only 0 or 1)
- - Random Forests via Scikit Learn          | Unable to assign proportion (only 0 or 1)
-'''
+    def forward(self, x):
+        x = self.relu(self.fc1(x))
+        x = self.relu(self.fc2(x))
+        x = self.sigmoid(self.fc3(x))
+        return x
 
-class LogitRegression(LinearRegression):
-
-    def fit(self, x, p):
-        p = np.asarray(p)
-        # p = np.clip(p, 1e-6, 1 - 1e-6)  # Clip to avoid math errors
-        y = np.log(p / (1 - p))
-        return super().fit(x, y)
-
-    def predict(self, x):
-        y = super().predict(x)
-        return 1 / (np.exp(-y) + 1)
-    
-    def score(self, utr_diff, best_of, var):
-        prop = self.predict([[utr_diff]])[0][0]
-        score = ''
-        sets_won = 0
-        num_sets = 0
-        for _ in range(best_of):
-            p1_games = 0
-            p2_games = 0
-            done = True
-            while done:
-                if p1_games == 6 and p2_games < 5 or p2_games == 6 and p1_games < 5:
-                    break
-                elif p1_games == 7 or p2_games == 7:
-                    break
-                val = np.random.normal(loc=prop,scale=var)
-                val = np.clip(val, 0, 1)
-                if val > 0.5:
-                    p1_games += 1
-                else:
-                    p2_games += 1
-
-            num_sets += 1
-            if p1_games > p2_games:
-                sets_won += 1
-            else:
-                sets_won -= 1
-            score = score + str(p1_games) + '-' + str(p2_games) + ' '
-            if abs(sets_won) == round(best_of/3)+1:
-                break
-            elif abs(sets_won) == 2 and num_sets > 2:
-                break
-        score = score[:-1]
-        return score
-
-# get data to fit to model
-data = pd.read_csv('atp_utr_tennis_matches.csv')
+matches = pd.read_csv('atp_utr_tennis_matches.csv')
 utr_history = pd.read_csv('utr_history.csv')
+history = get_player_history(utr_history)
+player_profiles = get_player_profiles(matches, history)
 
-x = np.empty(1)
-for i in range(len(data)):
-    x = np.append(x, data['p1_utr'][i]-data['p2_utr'][i])
+X = []
+for i in range(len(matches)):
+    X.append(preprocess_match_data(matches.iloc[i], player_profiles))
+vector = np.array(X)
 
-x = x.reshape(-1,1)
+# Extract target variable (e.g., match result, assuming `p_win` indicates win/loss)
+y = matches['p_win'].values  # 1 for win, 0 for loss (or whatever your target variable is)
 
-p = np.tanh(x) / 2 + 0.5
-tmodel = LogitRegression()
-tmodel.fit(0.9*x, p)
+# Normalize features (important for neural networks)
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
 
-# Assuming 'model' is your trained model
-joblib.dump(tmodel, 'model.sav')
+# Convert the numpy arrays to PyTorch tensors
+X_tensor = torch.tensor(X_scaled, dtype=torch.float32)
+y_tensor = torch.tensor(y, dtype=torch.float32)
+
+# Split the data into training and testing sets
+X_train, X_temp, y_train, y_temp = train_test_split(X_tensor, y_tensor, test_size=0.2, random_state=42)
+X_val, X_test, y_val, y_test = train_test_split(X_temp, y_temp, test_size=0.5, random_state=42)
+
+# Create DataLoader for training
+train_dataset = TensorDataset(X_train, y_train)
+val_dataset = TensorDataset(X_val, y_val)
+
+train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
+
+# Initialize model, loss function, and optimizer
+input_size = X_train.shape[1]
+model = TennisPredictor(input_size)
+criterion = nn.BCELoss()  # Binary cross-entropy loss for classification
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+# Training loop
+epochs = 20
+for epoch in range(epochs):
+    model.train()
+    total_loss = 0
+    for X_batch, y_batch in train_loader:
+        optimizer.zero_grad()
+        y_pred = model(X_batch).squeeze()
+        loss = criterion(y_pred, y_batch)
+        loss.backward()
+        optimizer.step()
+        total_loss += loss.item()
+
+    model.eval()
+    val_loss = 0
+    with torch.no_grad():
+        for X_val_batch, y_val_batch, in val_loader:
+            y_val_pred = model(X_val_batch).squeeze()
+            val_loss += criterion(y_val_pred, y_val_batch).item()
+
+    print(f"Epochs: {epoch+1} / {epochs}, Loss: {total_loss/len(train_loader):.4f}, Val Loss: {val_loss/len(val_loader):.4f}")
+print(f"Epochs: {epoch+1} / {epochs}, Loss: {total_loss/len(train_loader):.4f}, Val Loss: {val_loss/len(val_loader):.4f}")
+
+joblib.dump(model, 'nn_model.sav')
+
+#=== Evaluate model ===#
+
+# model.eval()
+# y_test_pred = model(X_test).squeeze().detach().numpy()
+# y_test_pred = (y_test_pred > 0.5).astype(int)
+# accuracy = accuracy_score(y_test.numpy(), y_test_pred)
+# print(f"Accuracy: {accuracy:.4f}\n")
 
 '''
-To load the model later:
-
-model = joblib.load('model.sav')
+CURRENT VERSION (Match Outcome):
+    86.5% - 85.5% Accuracy
 '''
