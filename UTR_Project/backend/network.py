@@ -5,16 +5,20 @@ import torch.nn as nn
 class TennisPredictor(nn.Module):
     def __init__(self, input_size):
         super(TennisPredictor, self).__init__()
-        self.fc1 = nn.Linear(input_size, 64)
-        self.fc2 = nn.Linear(64, 32)
-        self.fc3 = nn.Linear(32, 1)
+        self.fc1 = nn.Linear(input_size, 256)
+        self.fc2 = nn.Linear(256, 128)
+        self.fc3 = nn.Linear(128, 64)
+        self.fc4 = nn.Linear(64, 32)
+        self.fc5 = nn.Linear(32, 1)
         self.relu = nn.ReLU()
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
         x = self.relu(self.fc1(x))
         x = self.relu(self.fc2(x))
-        x = self.sigmoid(self.fc3(x))
+        x = self.relu(self.fc3(x))
+        x = self.relu(self.fc4(x))
+        x = self.sigmoid(self.fc5(x))
         return x
 
 # Convert -1 values to 0 and create a mask
@@ -169,10 +173,3 @@ def get_prop(model, matches, player_profiles):
     y_test_one = model(X_tensor).squeeze().detach().numpy()
 
     return 1-float(y_test_one)
-
-# Evaluate model
-# model.eval()
-# y_test_pred = model(X_test).squeeze().detach().numpy()
-# y_test_pred = (y_test_pred > 0.5).astype(int)
-# accuracy = accuracy_score(y_test.numpy(), y_test_pred)
-# print(f"Accuracy: {accuracy:.4f}\n")

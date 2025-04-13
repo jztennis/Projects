@@ -1,169 +1,193 @@
-import pandas as pd
-import csv
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LogisticRegression
-from sklearn import metrics
-from sklearn.metrics import classification_report
 import numpy as np
-from sklearn.linear_model import LinearRegression
 import random
-from colorama import Fore, Style, init
+import pandas as pd
+import torch
 import joblib
-from model import LogitRegression
+from network import TennisPredictor, get_player_profiles, get_player_history
+from colorama import Fore, Style, init
+
+# from model import TennisPredictor
+# from predict import get_player_profiles, get_player_history
 
 '''
-MODELS TESTED:
- - Pseudo Logistic Regression Using tanh()  | Current Version
- - Logistic Regression via Scikit Learn     | Unable to assign proportion (only 0 or 1)
- - Random Forests via Scikit Learn          | Unable to assign proportion (only 0 or 1)
+Need to recalculate 30-30(DEUCE) and HOLD/BREAK row
+to account for changing probabilities.
 '''
 
-def get_player_profiles(data, history, p1, p2):
-    player_profiles = {}
+class MarkovModel:
+    def __init__(self, prop):
+        self.curr_state = '0-0'
+        self.prop = prop
+        if round(0.66*(0.5+prop),10)+round(1-(0.66*(0.5+prop)),10) == 1:
+            self.pprop = round(0.66*(0.5+prop),10)
+            self.inv_prop = round(1-(0.66*(0.5+prop)),10)
+        else:
+            self.pprop = round(0.66*(0.5+prop),10) + 0.0000000001
+            self.inv_prop = round(1-(0.66*(0.5+prop)),10)
+        self.deuce = round((self.pprop**2) / (1 - 2*self.pprop*self.inv_prop),10)
+        self.inv_deuce = round(1-((self.pprop**2) / (1 - (2*self.pprop*self.inv_prop))),10)
 
-    for i in range(len(data)):
-        for player, opponent in [(data['p1'][i], data['p2'][i]), (data['p2'][i], data['p1'][i])]:
-            if player == p1 or player == p2:
-                utr_diff = data['p1_utr'][i] - data['p2_utr'][i] if data['p1'][i] == player else data['p2_utr'][i] - data['p1_utr'][i]
-                
-                if player not in player_profiles and player in history:
-                    player_profiles[player] = {
-                        "win_vs_lower": [],
-                        "win_vs_higher": [],
-                        "recent10": [],
-                        "utr": history[player]['utr'],
-                        "h2h": {}
-                    }
-                elif player not in player_profiles:
-                    player_profiles[player] = {
-                        "win_vs_lower": [],
-                        "win_vs_higher": [],
-                        "recent10": [],
-                        "utr": data['p1_utr'][i] if data['p1'][i] == player else data['p2_utr'][i],
-                        "h2h": {}
-                    }
-
-                if opponent not in player_profiles and opponent in history:
-                    player_profiles[opponent] = {
-                        "win_vs_lower": [],
-                        "win_vs_higher": [],
-                        "recent10": [],
-                        "utr": history[opponent]['utr'],
-                        "h2h": {}
-                    }
-                elif opponent not in player_profiles:
-                    player_profiles[opponent] = {
-                        "win_vs_lower": [],
-                        "win_vs_higher": [],
-                        "recent10": [],
-                        "utr": data['p1_utr'][i] if data['p1'][i] == opponent else data['p2_utr'][i],
-                        "h2h": {}
-                    }
-
-                if opponent not in player_profiles[player]['h2h']:
-                    player_profiles[player]['h2h'][opponent] = [0,0]
-                if player not in player_profiles[opponent]['h2h']:
-                    player_profiles[opponent]['h2h'][player] = [0,0]
-
-                if data['winner'][i] == player:
-                    player_profiles[player]['h2h'][opponent][0] += 1
-                    player_profiles[player]['h2h'][opponent][1] += 1
-                    player_profiles[opponent]['h2h'][player][1] += 1
-                else:
-                    player_profiles[player]['h2h'][opponent][1] += 1
-                    player_profiles[opponent]['h2h'][player][0] += 1
-                    player_profiles[opponent]['h2h'][player][1] += 1
-                
-                # Record win rates vs higher/lower-rated opponents
-                if utr_diff > 0:  # Player faced a lower-rated opponent
-                    player_profiles[player]["win_vs_lower"].append(data["p_win"][i] == 1 if data["p1"][i] == player else data["p_win"][i] == 0)
-                else:  # Player faced a higher-rated opponent
-                    player_profiles[player]["win_vs_higher"].append(data["p_win"][i] == 1 if data["p1"][i] == player else data["p_win"][i] == 0)
-                
-                if len(player_profiles[player]["recent10"]) < 10:
-                    player_profiles[player]["recent10"].append(data["p_win"][i] == 1 if data["p1"][i] == player else data["p_win"][i] == 0)
-                else:
-                    player_profiles[player]["recent10"] = player_profiles[player]["recent10"][1:]
-                    player_profiles[player]["recent10"].append(data["p_win"][i] == 1 if data["p1"][i] == player else data["p_win"][i] == 0)
-
-    for player in player_profiles:
-        profile = player_profiles[player]
-        profile["win_vs_lower"] = np.mean(profile["win_vs_lower"]) if len(profile["win_vs_lower"]) > 0 else 0.5
-        profile["win_vs_higher"] = np.mean(profile["win_vs_higher"]) if len(profile["win_vs_higher"]) > 0 else 0.5
-        profile["recent10"] = np.mean(profile["recent10"]) if len(profile["recent10"]) > 0 else 0
+        self.pt_matrix = {
+            '0-0': {'0-0': 0, '0-15': self.inv_prop, '15-0': self.pprop, '15-15': 0, '0-30': 0, '30-0': 0, '15-30': 0, '30-15': 0, '0-40': 0, '40-0': 0, '15-40': 0, '40-15': 0, '30-30(DEUCE)': 0, '30-40(40-A)': 0, '40-30(A-40)': 0, '40-40(NO AD)': 0, 'HOLD': 0, 'BREAK': 0},
+            '0-15': {'0-0': 0, '0-15': 0, '15-0': 0, '15-15': self.pprop, '0-30': self.inv_prop, '30-0': 0, '15-30': 0, '30-15': 0, '0-40': 0, '40-0': 0, '15-40': 0, '40-15': 0, '30-30(DEUCE)': 0, '30-40(40-A)': 0, '40-30(A-40)': 0, '40-40(NO AD)': 0, 'HOLD': 0, 'BREAK': 0},
+            '15-0': {'0-0': 0, '0-15': 0, '15-0': 0, '15-15': self.inv_prop, '0-30': 0, '30-0': self.pprop, '15-30': 0, '30-15': 0, '0-40': 0, '40-0': 0, '15-40': 0, '40-15': 0, '30-30(DEUCE)': 0, '30-40(40-A)': 0, '40-30(A-40)': 0, '40-40(NO AD)': 0, 'HOLD': 0, 'BREAK': 0},
+            '15-15': {'0-0': 0, '0-15': 0, '15-0': 0, '15-15': 0, '0-30': 0, '30-0': 0, '15-30': self.inv_prop, '30-15': self.pprop, '0-40': 0, '40-0': 0, '15-40': 0, '40-15': 0, '30-30(DEUCE)': 0, '30-40(40-A)': 0, '40-30(A-40)': 0, '40-40(NO AD)': 0, 'HOLD': 0, 'BREAK': 0},
+            '0-30': {'0-0': 0, '0-15': 0, '15-0': 0, '15-15': 0, '0-30': 0, '30-0': 0, '15-30': self.pprop, '30-15': 0, '0-40': self.inv_prop, '40-0': 0, '15-40': 0, '40-15': 0, '30-30(DEUCE)': 0, '30-40(40-A)': 0, '40-30(A-40)': 0, '40-40(NO AD)': 0, 'HOLD': 0, 'BREAK': 0},
+            '30-0': {'0-0': 0, '0-15': 0, '15-0': 0, '15-15': 0, '0-30': 0, '30-0': 0, '15-30': 0, '30-15': self.inv_prop, '0-40': 0, '40-0': self.pprop, '15-40': 0, '40-15': 0, '30-30(DEUCE)': 0, '30-40(40-A)': 0, '40-30(A-40)': 0, '40-40(NO AD)': 0, 'HOLD': 0, 'BREAK': 0},
+            '15-30': {'0-0': 0, '0-15': 0, '15-0': 0, '15-15': 0, '0-30': 0, '30-0': 0, '15-30': 0, '30-15': 0, '0-40': 0, '40-0': 0, '15-40': self.inv_prop, '40-15': 0, '30-30(DEUCE)': self.pprop, '30-40(40-A)': 0, '40-30(A-40)': 0, '40-40(NO AD)': 0, 'HOLD': 0, 'BREAK': 0},
+            '30-15': {'0-0': 0, '0-15': 0, '15-0': 0, '15-15': 0, '0-30': 0, '30-0': 0, '15-30': 0, '30-15': 0, '0-40': 0, '40-0': 0, '15-40': 0, '40-15': self.pprop, '30-30(DEUCE)': self.inv_prop, '30-40(40-A)': 0, '40-30(A-40)': 0, '40-40(NO AD)': 0, 'HOLD': 0, 'BREAK': 0},
+            '0-40': {'0-0': 0, '0-15': 0, '15-0': 0, '15-15': 0, '0-30': 0, '30-0': 0, '15-30': 0, '30-15': 0, '0-40': 0, '40-0': 0, '15-40': self.pprop, '40-15': 0, '30-30(DEUCE)': 0, '30-40(40-A)': 0, '40-30(A-40)': 0, '40-40(NO AD)': 0, 'HOLD': 0, 'BREAK': self.inv_prop},
+            '40-0': {'0-0': 0, '0-15': 0, '15-0': 0, '15-15': 0, '0-30': 0, '30-0': 0, '15-30': 0, '30-15': 0, '0-40': 0, '40-0': 0, '15-40': 0, '40-15': self.inv_prop, '30-30(DEUCE)': 0, '30-40(40-A)': 0, '40-30(A-40)': 0, '40-40(NO AD)': 0, 'HOLD': self.pprop, 'BREAK': 0},
+            '15-40': {'0-0': 0, '0-15': 0, '15-0': 0, '15-15': 0, '0-30': 0, '30-0': 0, '15-30': 0, '30-15': 0, '0-40': 0, '40-0': 0, '15-40': 0, '40-15': 0, '30-30(DEUCE)': 0, '30-40(40-A)': self.pprop, '40-30(A-40)': 0, '40-40(NO AD)': 0, 'HOLD': 0, 'BREAK': self.inv_prop},
+            '40-15': {'0-0': 0, '0-15': 0, '15-0': 0, '15-15': 0, '0-30': 0, '30-0': 0, '15-30': 0, '30-15': 0, '0-40': 0, '40-0': 0, '15-40': 0, '40-15': 0, '30-30(DEUCE)': 0, '30-40(40-A)': 0, '40-30(A-40)': self.inv_prop, '40-40(NO AD)': 0, 'HOLD': self.pprop, 'BREAK': 0},
+            '30-30(DEUCE)': {'0-0': 0, '0-15': 0, '15-0': 0, '15-15': 0, '0-30': 0, '30-0': 0, '15-30': 0, '30-15': 0, '0-40': 0, '40-0': 0, '15-40': 0, '40-15': 0, '30-30(DEUCE)': 0, '30-40(40-A)': 0, '40-30(A-40)': 0, '40-40(NO AD)': 0, 'HOLD': self.deuce, 'BREAK': self.inv_deuce},
+            '30-40(40-A)': {'0-0': 0, '0-15': 0, '15-0': 0, '15-15': 0, '0-30': 0, '30-0': 0, '15-30': 0, '30-15': 0, '0-40': 0, '40-0': 0, '15-40': 0, '40-15': 0, '30-30(DEUCE)': self.pprop, '30-40(40-A)': 0, '40-30(A-40)': 0, '40-40(NO AD)': 0, 'HOLD': 0, 'BREAK': self.inv_prop},
+            '40-30(A-40)': {'0-0': 0, '0-15': 0, '15-0': 0, '15-15': 0, '0-30': 0, '30-0': 0, '15-30': 0, '30-15': 0, '0-40': 0, '40-0': 0, '15-40': 0, '40-15': 0, '30-30(DEUCE)': self.inv_prop, '30-40(40-A)': 0, '40-30(A-40)': 0, '40-40(NO AD)': 0, 'HOLD': self.pprop, 'BREAK': 0},
+            '40-40(NO AD)': {'0-0': 0, '0-15': 0, '15-0': 0, '15-15': 0, '0-30': 0, '30-0': 0, '15-30': 0, '30-15': 0, '0-40': 0, '40-0': 0, '15-40': 0, '40-15': 0, '30-30(DEUCE)': 0, '30-40(40-A)': 0, '40-30(A-40)': 0, '40-40(NO AD)': 0, 'HOLD': self.pprop, 'BREAK': self.inv_prop},
+            'HOLD': {'0-0': 0, '0-15': 0, '15-0': 0, '15-15': 0, '0-30': 0, '30-0': 0, '15-30': 0, '30-15': 0, '0-40': 0, '40-0': 0, '15-40': 0, '40-15': 0, '30-30(DEUCE)': 0, '30-40(40-A)': 0, '40-30(A-40)': 0, '40-40(NO AD)': 0, 'HOLD': 1.0, 'BREAK': 0},
+            'BREAK': {'0-0': 0, '0-15': 0, '15-0': 0, '15-15': 0, '0-30': 0, '30-0': 0, '15-30': 0, '30-15': 0, '0-40': 0, '40-0': 0, '15-40': 0, '40-15': 0, '30-30(DEUCE)': 0, '30-40(40-A)': 0, '40-30(A-40)': 0, '40-40(NO AD)': 0, 'HOLD': 0, 'BREAK': 1.0},
+        }
     
-    return player_profiles
+    def next_state(self):
+        try:
+            self.curr_state = np.random.choice(list(self.pt_matrix.keys()), p=list(self.pt_matrix[self.curr_state].values()))
+        except:
+            print(list(self.pt_matrix[self.curr_state].values()))
+            quit()
+        return self.curr_state
 
-def get_player_history(utr_history):
-    history = {}
+def game(prop):
+    model = MarkovModel(prop)
+    while model.curr_state != 'HOLD' and model.curr_state != 'BREAK':
+        model.next_state()
+    return model.curr_state
 
-    for i in range(len(utr_history)):
-        if utr_history['l_name'][i]+' '+utr_history['f_name'][i][0]+'.' not in history:
-            history[utr_history['l_name'][i]+' '+utr_history['f_name'][i][0]+'.'] = {
-                'utr': utr_history['utr'][i]
-            }
-    return history
-
-def get_score(players, player_profiles, best_of=3):
-    utr_diff = [player_profiles[players[0]]["utr"]-player_profiles[players[1]]["utr"], player_profiles[players[1]]["utr"]-player_profiles[players[0]]["utr"]]
-    for j in range(len(players)):
-
-        utr_diff[j] += 0.1*player_profiles[players[j]]["recent10"]
-
-        if utr_diff[j] > 0:
-            utr_diff[j] *= (1.2 - player_profiles[players[j]]["win_vs_lower"])
-        elif utr_diff[j] < 0:
-            utr_diff[j] *= (1 + player_profiles[players[j]]["win_vs_higher"])
-        
-        if j == 0 and players[j+1] in player_profiles[players[j]]['h2h']:
-            utr_diff[j] *= ((0.5+player_profiles[players[j]]['h2h'][ps[j+1]][0] / player_profiles[players[j]]['h2h'][players[j+1]][1])**0.4)
-        elif j ==1 and players[j-1] in player_profiles[players[j]]['h2h']:
-            utr_diff[j] *= ((0.5+player_profiles[players[j]]['h2h'][ps[j-1]][0] / player_profiles[players[j]]['h2h'][players[j-1]][1])**0.4)
-
-    utr_diff[1] = -utr_diff[1]
-    utr_diff = np.mean(utr_diff)
-    utr_diff *= 0.8
-
-    score = model.score(utr_diff, best_of)
-
-    p1_games = 0
-    p2_games = 0
+def create_score(prop, best_of):
+    score = ''
+    first_serve = random.randint(0,1)
     sets_won = 0
-    for i in range(len(score)):
-        if i % 4 == 0:
-            p1_games += int(score[i])
-            p2_games += int(score[i+2])
-            if int(score[i]) > int(score[i+2]):
-                sets_won += 1
-            elif int(score[i]) < int(score[i+2]):
-                sets_won -= 1
-    if sets_won > 0:
-        p1_win = True
+    num_sets = 0
+    for _ in range(best_of):
+        p1_games = 0
+        p2_games = 0
+        done = True
+        while done:
+            if p1_games == 6 and p2_games < 5 or p2_games == 6 and p1_games < 5: # Good
+                break
+            elif p1_games == 7 or p2_games == 7:
+                break
+            
+            if (p1_games+p2_games) % 2 == 0: # Good
+                hb = game(prop)
+            else:
+                hb = game(1-prop)
+
+            if first_serve == 0: # Good
+                if hb == 'HOLD' and (p1_games+p2_games) % 2 == 0:
+                    p1_games += 1
+                elif hb == 'HOLD' and (p1_games+p2_games) % 2 == 1:
+                    p2_games += 1
+                elif hb == 'BREAK' and (p1_games+p2_games) % 2 == 0:
+                    p2_games += 1
+                elif hb == 'BREAK' and (p1_games+p2_games) % 2 == 1:
+                    p1_games += 1
+            else:
+                if hb == 'HOLD' and (p1_games+p2_games) % 2 == 0:
+                    p2_games += 1
+                elif hb == 'HOLD' and (p1_games+p2_games) % 2 == 1:
+                    p1_games += 1
+                elif hb == 'BREAK' and (p1_games+p2_games) % 2 == 0:
+                    p1_games += 1
+                elif hb == 'BREAK' and (p1_games+p2_games) % 2 == 1:
+                    p2_games += 1
+
+        num_sets += 1 # Good
+        if p1_games > p2_games:
+            sets_won += 1
+        else:
+            sets_won -= 1
+        score = score + str(p1_games) + '-' + str(p2_games) + ' '
+        if abs(sets_won) == round(best_of/3)+1:
+            break
+        elif abs(sets_won) == 2 and num_sets > 2:
+            break
+    score = score[:-1]
+    # print(score)
+    return score
+
+def preprocess_player_data(p1, p2, profiles):
+    match_vector = [profiles[p1]['utr']-profiles[p2]['utr'], 
+                    profiles[p1]['win_vs_lower'],
+                    profiles[p2]['win_vs_lower'],
+                    profiles[p1]['win_vs_higher'],
+                    profiles[p2]['win_vs_higher'],
+                    profiles[p1]['recent10'],
+                    profiles[p2]['recent10'],
+                    profiles[p1]['wvl_utr'],
+                    profiles[p2]['wvl_utr'],
+                    profiles[p1]['wvh_utr'],
+                    profiles[p2]['wvh_utr'],
+                    profiles[p1]['h2h'][p2][0] / profiles[p1]['h2h'][p2][1],
+                    profiles[p2]['h2h'][p1][0] / profiles[p2]['h2h'][p1][1]
+                    ]
+    return match_vector
+
+def get_prop(model, p1, p2, player_profiles):
+    # Make one prediction
+    X = preprocess_player_data(p1, p2, player_profiles)
+    X_tensor = torch.tensor(X, dtype=torch.float32)
+
+    prop = model(X_tensor).squeeze().detach().numpy()
+    prop = 1-float(prop)
+    prop = ((prop-0.5)**(5/3))+0.5
+    return prop
+
+def find_winner(score):
+    p1_sets_won = 0
+    p2_sets_won = 0
+    for j in range(len(score)):
+        if j % 4 == 0:
+            if int(score[j]) > int(score[j+2]):
+                p1_sets_won += 1
+            else:
+                p2_sets_won += 1
+    if p1_sets_won > p2_sets_won:
+        pred_winner = 'p1'
     else:
-        p1_win = False
+        pred_winner = 'p2'
+    return pred_winner
 
-    game_prop = p1_games / (p1_games+p2_games)
+def predict(model, p1, p2, player_profiles):
+    prop = get_prop(model, p1, p2, player_profiles)
+    score = create_score(prop, 5)
+    pred_winner = find_winner(score)
+    if prop >= 0.5:
+        true_winner = 'p1'
+    else:
+        true_winner = 'p2'
 
-    return score, p1_win, game_prop
+    while true_winner != pred_winner:
+        score = create_score(prop, 5)
+        pred_winner = find_winner(score)
 
-# get data to fit to model
+    return true_winner, score, round(100*prop, 2)
+
 data = pd.read_csv('atp_utr_tennis_matches.csv')
 utr_history = pd.read_csv('utr_history.csv')
-
 model = joblib.load('model.sav')
 
-p1 = "Medvedev D."
-p2 = "Alcaraz C."
-ps = [p1, p2]
-best = 5
 history = get_player_history(utr_history)
-player_profiles = get_player_profiles(data, history, ps[0], ps[1])
+player_profiles = get_player_profiles(data, history)
 
-score, p1_win, game_prop = get_score(ps, player_profiles, best_of=best)
-if p1_win:
-    print(f'{p1} is predicted to win ({round(100*game_prop,2)}% of games) against {p2}: ', end='')
+p1 = 'Djokovic N.'
+p2 = 'Alcaraz C.'
+
+true_winner, score, prop = predict(model, p1, p2, player_profiles)
+
+if true_winner == 'p1':
+    print(f'{p1} is predicted to win against {p2} ({prop}% Confidence): ', end='')
 else:
-    print(f'{p1} is predicted to lose ({round(100*(1-game_prop),2)}% of games) against {p2}:  ', end='')
+    print(f'{p2} is predicted to win against {p1}:  ', end='')
 for i in range(len(score)):
     if i % 4 == 0 and int(score[i]) > int(score[i+2]):
         print(Fore.GREEN + score[i], end='')
@@ -173,18 +197,3 @@ for i in range(len(score)):
         print(score[i], end='')
 print()
 init(autoreset=True)
-
-'''
-EXAMPLE OUTPUT:
-
-+-----------------------------------------------------------------------------------------+
-|                                                                                         |
-|   Medvedev D. is predicted to lose (63.33% of games) against Alcaraz C.:  1-6 6-7 4-6   |
-|                                                                                         |
-+-----------------------------------------------------------------------------------------+
-
-Output will always be player 1's score first. In this case I had 
-player 1 as Medvedev and player 2 as Alcaraz. So in this example 
-Medvedev lost to Alcaraz.
-
-'''
