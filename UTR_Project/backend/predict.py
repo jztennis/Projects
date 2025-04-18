@@ -6,9 +6,6 @@ import joblib
 from network import TennisPredictor, get_player_profiles, get_player_history
 from colorama import Fore, Style, init
 
-# from model import TennisPredictor
-# from predict import get_player_profiles, get_player_history
-
 '''
 Need to recalculate 30-30(DEUCE) and HOLD/BREAK row
 to account for changing probabilities.
@@ -139,7 +136,6 @@ def get_prop(model, p1, p2, player_profiles):
 
     prop = model(X_tensor).squeeze().detach().numpy()
     prop = 1-float(prop)
-    prop = ((prop-0.5)**(5/3))+0.5
     return prop
 
 def find_winner(score):
@@ -157,9 +153,10 @@ def find_winner(score):
         pred_winner = 'p2'
     return pred_winner
 
-def predict(model, p1, p2, player_profiles):
+def predict(model, p1, p2, player_profiles, best_of=3):
     prop = get_prop(model, p1, p2, player_profiles)
-    score = create_score(prop, 5)
+    score = create_score(prop, best_of)
+
     pred_winner = find_winner(score)
     if prop >= 0.5:
         true_winner = 'p1'
@@ -167,7 +164,7 @@ def predict(model, p1, p2, player_profiles):
         true_winner = 'p2'
 
     while true_winner != pred_winner:
-        score = create_score(prop, 5)
+        score = create_score(prop, best_of)
         pred_winner = find_winner(score)
 
     return true_winner, score, round(100*prop, 2)
@@ -179,15 +176,15 @@ model = joblib.load('model.sav')
 history = get_player_history(utr_history)
 player_profiles = get_player_profiles(data, history)
 
-p1 = 'Djokovic N.'
-p2 = 'Alcaraz C.'
+p1 = 'De Minaur A.'
+p2 = 'Paul T.'
 
-true_winner, score, prop = predict(model, p1, p2, player_profiles)
+true_winner, score, prop = predict(model, p1, p2, player_profiles, best_of=3)
 
 if true_winner == 'p1':
     print(f'{p1} is predicted to win against {p2} ({prop}% Confidence): ', end='')
 else:
-    print(f'{p2} is predicted to win against {p1}:  ', end='')
+    print(f'{p1} is predicted to lose against {p2} ({prop}% Confidence): ', end='')
 for i in range(len(score)):
     if i % 4 == 0 and int(score[i]) > int(score[i+2]):
         print(Fore.GREEN + score[i], end='')
