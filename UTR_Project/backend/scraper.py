@@ -94,6 +94,10 @@ def scroll_page(driver):
 ### Get UTR Rating ###
 def scrape_player_matches(profile_ids, utr_history, matches, email, password, offset=0, stop=1, writer=None):
     # Initialize the Selenium WebDriver (make sure you have the appropriate driver installed)
+    tourney_type = {}
+    for r in matches.itertuples():
+        if r.tournament not in tourney_type.keys():
+            tourney_type[r.tournament] = r.surface
     driver = webdriver.Chrome()
     url = 'https://app.utrsports.net/'
     today = date.today()
@@ -104,9 +108,9 @@ def scrape_player_matches(profile_ids, utr_history, matches, email, password, of
     for i in range(len(profile_ids)):
         if i == stop:
             break
-        # if i % round(len(profile_ids)/100) == 0:
-        #     print(f'Scraping..... {y}%')
-        #     y += 1
+        if i % round(len(profile_ids)/100) == 0:
+            print(f'Scraping..... {y}%')
+            y += 1
 
         try:
             search_url = f"https://app.utrsports.net/profiles/{round(profile_ids['p_id'][i+offset])}"
@@ -146,6 +150,8 @@ def scrape_player_matches(profile_ids, utr_history, matches, email, password, of
             elif tourney_name == "US Open" or tourney_name == "Austrlian Open":
                 slam = "Grand Slam"
                 surface = "Hard"
+            elif tourney_name in tourney_type.keys():
+                surface = tourney_type[tourney_name]
             else:
                 temp = ''
                 _ = False
@@ -285,6 +291,9 @@ def scrape_player_matches(profile_ids, utr_history, matches, email, password, of
 
 ### Get UTR History ###
 def scrape_utr_history(df, email, password, offset=0, stop=1, writer=None):
+    ids = {'f_name': [], 'l_name': [], 'p_id': []}
+    test = True
+
     # Initialize the Selenium WebDriver (make sure you have the appropriate driver installed)
     driver = webdriver.Chrome()
     url = 'https://app.utrsports.net/'
@@ -293,16 +302,18 @@ def scrape_utr_history(df, email, password, offset=0, stop=1, writer=None):
 
     for i in range(len(df)):
         if i == stop:
+            test = False
             break
         
         try:
             search_url = f"https://app.utrsports.net/profiles/{round(df['p_id'][i+offset])}?t=6"
         except:
+            print(f"{df['f_name'][i]} | {df['l_name'][i]} | {df['p_id'][i]}")
             continue
 
         load_page(driver, search_url)
 
-        time.sleep(0.25)
+        time.sleep(0.5)
 
         scroll_page(driver)
 
@@ -312,7 +323,7 @@ def scrape_utr_history(df, email, password, offset=0, stop=1, writer=None):
             show_all.click()
         except:
             try:
-                time.sleep(2)
+                time.sleep(2.5)
                 show_all = driver.find_element(By.LINK_TEXT, 'Show all')
                 show_all.click()
             except:
@@ -335,11 +346,22 @@ def scrape_utr_history(df, email, password, offset=0, stop=1, writer=None):
                 continue
             utr = utrs[j].find("div", class_="newStatsTabContent__historyItemRating__GQUXw").text
             utr_date = utrs[j].find("div", class_="newStatsTabContent__historyItemDate__jFJyD").text
+            # print(float(utr))
+            if j == 1 and float(utr) < 13:
+                print(f"{df['f_name'][i]} | {df['l_name'][i]} | {df['p_id'][i]}")
+                break
 
             data_row = [df['f_name'][i+offset], df['l_name'][i+offset], utr_date, utr]
 
             writer.writerow(data_row)
 
+        ids['f_name'].append(df['f_name'][i+offset])
+        ids['l_name'].append(df['l_name'][i+offset])
+        ids['p_id'].append(df['p_id'][i+offset])
+
     # Close the driver
     driver.quit()
+
+    if test:
+        ids.to_csv('profile_id.csv', index=False)
 ###

@@ -6,6 +6,9 @@ import joblib
 from network import TennisPredictor, get_player_profiles, get_player_history
 from colorama import Fore, Style, init
 
+# from model import TennisPredictor
+# from predict import get_player_profiles, get_player_history
+
 '''
 Need to recalculate 30-30(DEUCE) and HOLD/BREAK row
 to account for changing probabilities.
@@ -113,20 +116,24 @@ def create_score(prop, best_of):
     return score
 
 def preprocess_player_data(p1, p2, profiles):
-    match_vector = [profiles[p1]['utr']-profiles[p2]['utr'], 
-                    profiles[p1]['win_vs_lower'],
-                    profiles[p2]['win_vs_lower'],
-                    profiles[p1]['win_vs_higher'],
-                    profiles[p2]['win_vs_higher'],
-                    profiles[p1]['recent10'],
-                    profiles[p2]['recent10'],
-                    profiles[p1]['wvl_utr'],
-                    profiles[p2]['wvl_utr'],
-                    profiles[p1]['wvh_utr'],
-                    profiles[p2]['wvh_utr'],
-                    profiles[p1]['h2h'][p2][0] / profiles[p1]['h2h'][p2][1],
-                    profiles[p2]['h2h'][p1][0] / profiles[p2]['h2h'][p1][1]
-                    ]
+    try:
+        match_vector = [profiles[p1]['utr']-profiles[p2]['utr'], 
+                        profiles[p1]['win_vs_lower']-profiles[p2]['win_vs_lower'],
+                        profiles[p1]['win_vs_higher']-profiles[p2]['win_vs_higher'],
+                        profiles[p1]['recent10']-profiles[p2]['recent10'],
+                        profiles[p1]['wvl_utr']-profiles[p2]['wvl_utr'],
+                        profiles[p1]['wvh_utr']-profiles[p2]['wvh_utr'],
+                        profiles[p1]['h2h'][p2][0] / profiles[p1]['h2h'][p2][1]-profiles[p2]['h2h'][p1][0] / profiles[p2]['h2h'][p1][1],
+                        ]
+    except:
+        match_vector = [profiles[p1]['utr']-profiles[p2]['utr'], 
+                        profiles[p1]['win_vs_lower']-profiles[p2]['win_vs_lower'],
+                        profiles[p1]['win_vs_higher']-profiles[p2]['win_vs_higher'],
+                        profiles[p1]['recent10']-profiles[p2]['recent10'],
+                        profiles[p1]['wvl_utr']-profiles[p2]['wvl_utr'],
+                        profiles[p1]['wvh_utr']-profiles[p2]['wvh_utr'],
+                        0,
+                        ]
     return match_vector
 
 def get_prop(model, p1, p2, player_profiles):
@@ -153,7 +160,34 @@ def find_winner(score):
         pred_winner = 'p2'
     return pred_winner
 
-def predict(model, p1, p2, player_profiles, best_of=3):
+def predict(p1, p2, surface, best_of=3):
+    data = pd.read_csv('atp_utr_tennis_matches.csv')
+    utr_history = pd.read_csv('utr_history.csv')
+
+    matches_hard = data[data['surface'] == 'Hard']
+    matches_clay = data[data['surface'] == 'Clay']
+    matches_grass = data[data['surface'] == 'Grass']
+
+    hard_model = joblib.load('hard_model.sav')
+    clay_model = joblib.load('clay_model.sav')
+    grass_model = joblib.load('grass_model.sav')
+
+    if surface == 'Hard':
+        data = matches_hard
+        model = hard_model
+    elif surface == 'Clay':
+        data = matches_clay
+        model = clay_model
+    elif surface == 'Grass':
+        data = matches_grass
+        model = grass_model
+
+    history = get_player_history(utr_history)
+    player_profiles = get_player_profiles(data, history)
+
+    # print(f'{p1} | UTR = {player_profiles[p1]["utr"]} | WVL = {player_profiles[p1]["win_vs_lower"]} | WVH = {player_profiles[p1]["win_vs_higher"]} | WVL UTR = {player_profiles[p1]["wvl_utr"]} | WVH UTR = {player_profiles[p1]["wvh_utr"]} | R10 = {player_profiles[p1]["recent10"]} | H2H = {player_profiles[p1]["h2h"][p2]}')
+    # print(f'{p2} | UTR = {player_profiles[p2]["utr"]} | WVL = {player_profiles[p2]["win_vs_lower"]} | WVH = {player_profiles[p2]["win_vs_higher"]} | WVL UTR = {player_profiles[p2]["wvl_utr"]} | WVH UTR = {player_profiles[p2]["wvh_utr"]} | R10 = {player_profiles[p2]["recent10"]} | H2H = {player_profiles[p2]["h2h"][p1]}')
+
     prop = get_prop(model, p1, p2, player_profiles)
     score = create_score(prop, best_of)
 
@@ -167,30 +201,60 @@ def predict(model, p1, p2, player_profiles, best_of=3):
         score = create_score(prop, best_of)
         pred_winner = find_winner(score)
 
-    return true_winner, score, round(100*prop, 2)
+    prediction = ""
 
-data = pd.read_csv('atp_utr_tennis_matches.csv')
-utr_history = pd.read_csv('utr_history.csv')
-model = joblib.load('model.sav')
-
-history = get_player_history(utr_history)
-player_profiles = get_player_profiles(data, history)
-
-p1 = 'De Minaur A.'
-p2 = 'Paul T.'
-
-true_winner, score, prop = predict(model, p1, p2, player_profiles, best_of=3)
-
-if true_winner == 'p1':
-    print(f'{p1} is predicted to win against {p2} ({prop}% Confidence): ', end='')
-else:
-    print(f'{p1} is predicted to lose against {p2} ({prop}% Confidence): ', end='')
-for i in range(len(score)):
-    if i % 4 == 0 and int(score[i]) > int(score[i+2]):
-        print(Fore.GREEN + score[i], end='')
-    elif i % 4 == 0 and int(score[i]) < int(score[i+2]):
-        print(Fore.RED + score[i], end='')
+    if true_winner == 'p1':
+        prediction += f'Winner: {p1} ({round(100*prop, 2)}% Probability): '
     else:
-        print(score[i], end='')
-print()
-init(autoreset=True)
+        prediction += f'Winner: {p2} ({round(100*(1-prop), 2)}% Probability): '
+    for i in range(len(score)):
+        if i % 4 == 0 and int(score[i]) > int(score[i+2]):
+            prediction += score[i]
+        elif i % 4 == 0 and int(score[i]) < int(score[i+2]):
+            prediction += score[i]
+        else:
+            prediction += score[i]
+
+    return prediction
+
+p1 = "Marozsan F."
+p2 = "Rublev A."
+surface = 'Clay'
+# location = "Miami" # DON'T USE THIS IN FUTURE
+
+# data = pd.read_csv('atp_utr_tennis_matches.csv')
+# hard_model = joblib.load('hard_model.sav')
+# clay_model = joblib.load('clay_model.sav')
+# grass_model = joblib.load('grass_model.sav')
+
+prediction = predict(p1, p2, surface, best_of=3) # update prompt for user enter best_of
+
+
+
+print(prediction)
+# wvl = []
+# for i in range(len(data)):
+#     if data["p1"][i] == "Alcaraz C.":
+#         if data['p_win'][i] == 0:
+#             wvl.append(1)
+#         else:
+#             wvl.append(0)
+#     elif data["p2"][i] == "Alcaraz C.":
+#         if data['p_win'][i] == 1:
+#             wvl.append(1)
+#         else:
+#             wvl.append(0)
+    
+#     if len(wvl) > 10:
+#         wvl = wvl[1:]
+#         print(wvl)
+       
+# print(wvl)
+# print(sum(wvl)/len(wvl))
+
+'''
+Alcaraz C. Metrics:
+ - WVL = 0.8011049723756906
+ - WVH = 0.625
+ - R10 = 0.6
+ '''

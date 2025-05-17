@@ -23,8 +23,11 @@ prev_matches = pd.read_csv('atp_utr_tennis_matches.csv')
 utr_history = get_player_history(utr_history)
 
 with open('atp_utr_tennis_matches.csv', 'a', newline='', encoding='utf-8') as csvfile:
+    print("Scraping...")
     writer = csv.writer(csvfile)
     scrape_player_matches(profile_ids, utr_history, prev_matches, creds.email, creds.password, offset=0, stop=-1, writer=writer)
+
+print('DONE...')
 
 matches = pd.read_csv('atp_utr_tennis_matches.csv')
 matches.drop_duplicates(subset=['date','p1','p2'])
