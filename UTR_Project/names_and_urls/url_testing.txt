@@ -10,3 +10,15 @@ Notes:
 
 https://app.utrsports.net/search?sportTypes=tennis,pickleball&type=players&startDate=01/18/2025&distance=10mi&lat=34.1139&lng=-118.4068&locationInputValue=Los%20Angeles,%20CA,%20USA&location=Los%20Angeles,%20CA,%20USA&utrFitPosition=6&utrMax=16&utrMin=1&utrTeamType=singles&utrType=verified
 https://app.utrsports.net/search?sportTypes=tennis,pickleball&type=players&startDate=01/18/2025&distance=10mi&lat=34.0549076&lng=-118.242643&locationInputValue=Los%20Angeles,%20CA,%20USA&location=Los%20Angeles,%20CA,%20USA&utrFitPosition=6&utrMax=16&utrMin=1&utrTeamType=singles&utrType=verified
+
+
+
+JOINING WITH PRO PLAYERS DATASET:
+
+https://app.utrsports.net/search?query=carlos&sportTypes=tennis,pickleball&startDate=01/28/2025&utrMin=1&utrMax=16&utrType=verified&utrTeamType=singles&utrFitPosition=6&type=players&lat=47.16315729999999&lng=-122.0267787
+https://app.utrsports.net/search?query=carlos%20a&sportTypes=tennis,pickleball&startDate=01/28/2025&utrMin=1&utrMax=16&utrType=verified&utrTeamType=singles&utrFitPosition=6&type=players&lat=47.16315729999999&lng=-122.0267787
+
+https://app.utrsports.net/search?query=carlos%20a&sportTypes=tennis,pickleball&startDate=01/28/2025&utrMin=1&utrMax=16&utrType=verified&utrTeamType=singles&utrFitPosition=6&type=players&lat=47.16315729999999&lng=-122.0267787
+
+//*[@id="myutr-app-body"]/div[1]/div[3]/div[2]/div[2]/div[2]/a
+//*[@id="myutr-app-body"]/div[1]/div[3]/div[2]/div[2]/div[2]/a
