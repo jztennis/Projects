@@ -1,0 +1,65 @@
+tournament,p1,p1_profit,p2,p2_profit,pred_winner,probability
+french open,Karen Khachanov,9.09,Aleksandar Vukic,650,Khachanov K.,52.88
+french open,Marcos Giron,245,Tallon Griekspoor,30.3,Griekspoor T.,54.4
+french open,Jiri Lehecka,17.39,Jordan Thompson,400,Thompson J.,50.56
+french open,Ethan Quinn,220,Grigor Dimitrov,33.33,Dimitrov G.,60.02
+french open,Alex De Minaur,26.32,Laslo Djere,270,De Minaur A.,99.63
+french open,Alejandro Tabilo,57.14,Arthur Cazaux,135,Tabilo A.,54.27
+french open,Hubert Hurkacz,105,Joao Fonseca,71.43,Hurkacz H.,56.43
+french open,Daniel Altmaier,245,Taylor Fritz,30.3,Altmaier D.,58.06
+french open,Luciano Darderi,120,Sebastian Korda,60.61,Darderi L.,64.96
+french open,Giulio Zeppieri,2500,Carlos Alcaraz,1.0,Zeppieri G.,83.74
+french open,Nikoloz Basilashvili,50.0,Henrique Rocha,150,Rocha H.,52.57
+french open,Roberto Bautista Agut,400,Holger Rune,17.39,Rune H.,96.94
+french open,Marin Cilic,150,Flavio Cobolli,50.0,Cilic M.,53.58
+french open,Camilo Ugo Carabelli,120,Jaume Munar,60.61,Ugo Carabelli C.,76.05
+french open,Maximilian Marterer,26.32,Adam Walton,285,Marterer M.,60.95
+french open,Miomir Kecmanovic,105,Sebastian Baez,71.43,Kecmanovic M.,98.73
+french open,Mattia Bellucci,1800,Jack Draper,2.0,Draper J.,96.55
+french open,Jesper De Jong,57.14,Francesco Passaro,135,De Jong J.,84.61
+french open,Yoshihito Nishioka,425,Alexei Popyrin,16.67,Nishioka Y.,95.58
+french open,Alexander Bublik,19.05,James Duckworth,380,Bublik A.,99.28
+french open,Jannik Sinner,1.0,Arthur Rinderknech,2500,Sinner J.,86.15
+french open,Alexandre Muller,210,Jakub Mensik,36.36,Mensik J.,98.47
+french open,Andrey Rublev,7.14,Lloyd Harris,800,Rublev A.,98.4
+french open,Alexander Zverev,3.33,Learner Tien,1400,Tien L.,99.65
+french open,Nicolas Jarry,475,Arthur Fils,14.29,Jarry N.,62.22
+french open,Denis Shapovalov,40.0,Pedro Martinez,185,Martinez P.,61.21
+french open,Francisco Cerundolo,11.11,Gabriel Diallo,600,Diallo G.,99.75
+french open,Alexander Shevchenko,140,Dusan Lajovic,50.0,Shevchenko A.,57.4
+french open,Daniil Medvedev,22.22,Cameron Norrie,320,Medvedev D.,99.04
+french open,Pablo Llamas Ruiz,600,Alejandro Davidovich Fokina,11.11,Llamas Ruiz P.,81.41
+french open,Hugo Gaston,50.0,Ugo Blanchet,150,Blanchet U.,50.3
+french open,Mariano Navone,50.0,Brandon Nakashima,150,Nakashima B.,91.04
+french open,Marton Fucsovics,9.09,Tristan Schoolkate,700,Fucsovics M.,52.68
+french open,Kamil Majchrzak,125,Hamad Medjedovic,57.14,Majchrzak K.,51.76
+french open,Pablo Carreno Busta,140,Francisco Comesana,54.05,Carreno Busta P.,52.66
+french open,Reilly Opelka,44.44,Rinky Hijikata,160,Opelka R.,99.4
+french open,Vit Kopriva,41.67,Thiago Monteiro,180,Monteiro T.,61.62
+french open,Fabian Marozsan,22.22,Luca Nardi,320,Marozsan F.,97.64
+french open,Benjamin Hassan,150,Matteo Gigante,50.0,Gigante M.,54.59
+french open,Frances Tiafoe,41.67,Roman Safiullin,185,Safiullin R.,99.81
+french open,Lorenzo Musetti,7.14,Yannick Hanfmann,850,Hanfmann Y.,67.57
+french open,Jenson Brooksby,57.14,Jaime Faria,125,Brooksby J.,51.09
+french open,Kyrian Jacquet,135,Nuno Borges,57.14,Jacquet K.,52.86
+french open,Emilio Nava,100,Botic Van De Zandschulp,76.92,Nava E.,79.79
+french open,Tomas Machac,40.0,Quentin Halys,185,Halys Q.,52.42
+french open,Ben Shelton,60.61,Lorenzo Sonego,125,Shelton B.,97.38
+french open,Jaume Munar,390,Arthur Fils,17.39,Fils A.,90.24
+french open,Henrique Rocha,1100,Jakub Mensik,5.0,Rocha H.,57.72
+french open,Alex De Minaur,9.09,Alexander Bublik,650,De Minaur A.,97.31
+french open,Jiri Lehecka,100,Alejandro Davidovich Fokina,76.92,Davidovich Fokina A.,58.74
+french open,Alexander Zverev,4.0,Jesper De Jong,1300,De Jong J.,84.79
+french open,Andrey Rublev,2.86,Adam Walton,1700,Walton A.,51.95
+french open,Gabriel Diallo,135,Tallon Griekspoor,57.14,Griekspoor T.,50.75
+french open,Corentin Moutet,950,Novak Djokovic,5.0,Djokovic N.,87.38
+french open,Flavio Cobolli,71.43,Matteo Arnaldi,110,Arnaldi M.,56.53
+french open,Alexander Shevchenko,76.92,Ethan Quinn,100,Shevchenko A.,72.11
+french open,Jacob Fearnley,110,Ugo Humbert,66.67,Humbert U.,54.24
+french open,Denis Shapovalov,54.05,Filip Misolic,140,Misolic F.,56.74
+french open,Lorenzo Musetti,12.5,Mariano Navone,550,Musetti L.,83.15
+french open,Damir Dzumhur,1800,Carlos Alcaraz,2.0,Dzumhur D.,68.18
+french open,Karen Khachanov,71.43,Tommy Paul,105,Paul T.,98.55
+french open,Nuno Borges,100,Alexei Popyrin,74.07,Popyrin A.,57.54
+french open,Hamad Medjedovic,50.0,Daniel Altmaier,140,Medjedovic H.,92.9
+french open,Ben Shelton,44.44,Matteo Gigante,175,Gigante M.,54.73

@@ -11,6 +11,10 @@ from network import get_player_profiles, get_player_history, preprocess_match_da
 from sklearn.metrics import accuracy_score
 import matplotlib.pyplot as plt
 from network import TennisPredictor
+from sklearn.metrics import precision_score
+from sklearn.metrics import recall_score
+from sklearn.metrics import f1_score
+from sklearn.metrics import log_loss
 
 class EarlyStopping:
     def __init__(self, patience=5, min_delta=0.0001):
@@ -124,7 +128,7 @@ for surface, match_subset in {'Hard': matches_hard, 'Clay': matches_clay, 'Grass
         val_loss_arr.append(val_loss / len(val_loader))
         
         # if epoch % 50 == 0:
-        print(f"Epochs: {epoch+1} / {epochs}, Loss: {total_loss/len(train_loader):.4f}, Val Loss: {val_loss/len(val_loader):.4f}")
+        # print(f"Epochs: {epoch+1} / {epochs}, Loss: {total_loss/len(train_loader):.4f}, Val Loss: {val_loss/len(val_loader):.4f}")
 
         early_stopper(round(val_loss / len(val_loader),4))
         if early_stopper.early_stop:
@@ -141,50 +145,61 @@ for surface, match_subset in {'Hard': matches_hard, 'Clay': matches_clay, 'Grass
     y_test_pred = (y_test_pred > 0.5).astype(int)
     y_test = y_test.numpy()
     accuracy = accuracy_score(y_test, y_test_pred)
-    print(f"General Accuracy: {accuracy:.4f}\n")
-    acc1, acc2, acc3, acc4, acc5 = [0,0], [0,0], [0,0], [0,0], [0,0]
-    for i in range(len(temp)):
-        if y_test_pred[i] == y_test[i]:
-            corr = True
-        else:
-            corr = False
+    # print(f"General Accuracy: {accuracy:.4f}\n")
+    precision = precision_score(y_test, y_test_pred)
+    recall = recall_score(y_test, y_test_pred)
+    f1 = f1_score(y_test, y_test_pred)
+    logloss = log_loss(y_test, temp)
 
-        if temp[i] < 0.1 or temp[i] >= 0.9:
-            if corr:
-                acc1[0] += 1
-                acc1[1] += 1
-            else:
-                acc1[1] += 1
-        elif (temp[i] < 0.2 and temp[i] >= 0.1) or (temp[i] >= 0.8 and temp[i] < 0.9):
-            if corr:
-                acc2[0] += 1
-                acc2[1] += 1
-            else:
-                acc2[1] += 1
-        elif (temp[i] < 0.3 and temp[i] >= 0.2) or (temp[i] >= 0.7 and temp[i] < 0.8):
-            if corr:
-                acc3[0] += 1
-                acc3[1] += 1
-            else:
-                acc3[1] += 1
-        elif (temp[i] < 0.4 and temp[i] >= 0.3) or (temp[i] >= 0.6 and temp[i] < 0.7):
-            if corr:
-                acc4[0] += 1
-                acc4[1] += 1
-            else:
-                acc4[1] += 1
-        elif temp[i] >= 0.4 and temp[i] < 0.6:
-            if corr:
-                acc5[0] += 1
-                acc5[1] += 1
-            else:
-                acc5[1] += 1
+    print(f"+===== {surface} Court =====+")
+    print(f"General Accuracy: {accuracy:.4f}")
+    print(f"Precision:        {precision:.4f}")
+    print(f"Recall:           {recall:.4f}")
+    print(f"F1 Score:         {f1:.4f}")
+    print(f"Log Loss:         {logloss:.4f}")
+    # acc1, acc2, acc3, acc4, acc5 = [0,0], [0,0], [0,0], [0,0], [0,0]
+    # for i in range(len(temp)):
+    #     if y_test_pred[i] == y_test[i]:
+    #         corr = True
+    #     else:
+    #         corr = False
 
-    print(f"Accuracy If Predicted Val In Range of [0, 0.1) or (0.9, 1]: {round(100*(acc1[0]/(acc1[1]+1)), 2)}% ({acc1[0]})")
-    print(f"Accuracy If Predicted Val In Range of [0.1, 0.2) or (0.8, 0.9]: {round(100*(acc2[0]/(acc2[1]+1)), 2)}% ({acc2[0]})")
-    print(f"Accuracy If Predicted Val In Range of [0.2, 0.3) or (0.7, 0.8]: {round(100*(acc3[0]/(acc3[1]+1)), 2)}% ({acc3[0]})")
-    print(f"Accuracy If Predicted Val In Range of [0.3, 0.4) or (0.6, 0.7]: {round(100*(acc4[0]/(acc4[1]+1)), 2)}% ({acc4[0]})")
-    print(f"Accuracy If Predicted Val In Range of [0.4, 0.6]: {round(100*(acc5[0]/(acc5[1]+1)), 2)}% ({acc5[0]})")
+    #     if temp[i] < 0.1 or temp[i] >= 0.9:
+    #         if corr:
+    #             acc1[0] += 1
+    #             acc1[1] += 1
+    #         else:
+    #             acc1[1] += 1
+    #     elif (temp[i] < 0.2 and temp[i] >= 0.1) or (temp[i] >= 0.8 and temp[i] < 0.9):
+    #         if corr:
+    #             acc2[0] += 1
+    #             acc2[1] += 1
+    #         else:
+    #             acc2[1] += 1
+    #     elif (temp[i] < 0.3 and temp[i] >= 0.2) or (temp[i] >= 0.7 and temp[i] < 0.8):
+    #         if corr:
+    #             acc3[0] += 1
+    #             acc3[1] += 1
+    #         else:
+    #             acc3[1] += 1
+    #     elif (temp[i] < 0.4 and temp[i] >= 0.3) or (temp[i] >= 0.6 and temp[i] < 0.7):
+    #         if corr:
+    #             acc4[0] += 1
+    #             acc4[1] += 1
+    #         else:
+    #             acc4[1] += 1
+    #     elif temp[i] >= 0.4 and temp[i] < 0.6:
+    #         if corr:
+    #             acc5[0] += 1
+    #             acc5[1] += 1
+    #         else:
+    #             acc5[1] += 1
+
+    # print(f"Accuracy If Predicted Val In Range of [0, 0.1) or (0.9, 1]: {round(100*(acc1[0]/(acc1[1]+1)), 2)}% ({acc1[0]})")
+    # print(f"Accuracy If Predicted Val In Range of [0.1, 0.2) or (0.8, 0.9]: {round(100*(acc2[0]/(acc2[1]+1)), 2)}% ({acc2[0]})")
+    # print(f"Accuracy If Predicted Val In Range of [0.2, 0.3) or (0.7, 0.8]: {round(100*(acc3[0]/(acc3[1]+1)), 2)}% ({acc3[0]})")
+    # print(f"Accuracy If Predicted Val In Range of [0.3, 0.4) or (0.6, 0.7]: {round(100*(acc4[0]/(acc4[1]+1)), 2)}% ({acc4[0]})")
+    # print(f"Accuracy If Predicted Val In Range of [0.4, 0.6]: {round(100*(acc5[0]/(acc5[1]+1)), 2)}% ({acc5[0]})")
 
     # plt.figure()
     # plt.plot(range(1, count + 1), train_loss, label="Training Loss")

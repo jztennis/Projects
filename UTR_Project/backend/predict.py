@@ -5,6 +5,7 @@ import torch
 import joblib
 from network import TennisPredictor, get_player_profiles, get_player_history
 from colorama import Fore, Style, init
+import csv
 
 # from model import TennisPredictor
 # from predict import get_player_profiles, get_player_history
@@ -189,68 +190,85 @@ def predict(p1, p2, surface, best_of=3):
     # print(f'{p2} | UTR = {player_profiles[p2]["utr"]} | WVL = {player_profiles[p2]["win_vs_lower"]} | WVH = {player_profiles[p2]["win_vs_higher"]} | WVL UTR = {player_profiles[p2]["wvl_utr"]} | WVH UTR = {player_profiles[p2]["wvh_utr"]} | R10 = {player_profiles[p2]["recent10"]} | H2H = {player_profiles[p2]["h2h"][p1]}')
 
     prop = get_prop(model, p1, p2, player_profiles)
-    score = create_score(prop, best_of)
+    # score = create_score(prop, best_of)
 
-    pred_winner = find_winner(score)
+    # pred_winner = find_winner(score)
     if prop >= 0.5:
         true_winner = 'p1'
     else:
         true_winner = 'p2'
 
-    while true_winner != pred_winner:
-        score = create_score(prop, best_of)
-        pred_winner = find_winner(score)
+    # while true_winner != pred_winner:
+        # score = create_score(prop, best_of)
+        # pred_winner = find_winner(score)
 
-    prediction = ""
+    # prediction = ""
 
     if true_winner == 'p1':
-        prediction += f'Winner: {p1} ({round(100*prop, 2)}% Probability): '
+        prediction = p1
+        prob = round(100*prop, 2)
     else:
-        prediction += f'Winner: {p2} ({round(100*(1-prop), 2)}% Probability): '
-    for i in range(len(score)):
-        if i % 4 == 0 and int(score[i]) > int(score[i+2]):
-            prediction += score[i]
-        elif i % 4 == 0 and int(score[i]) < int(score[i+2]):
-            prediction += score[i]
-        else:
-            prediction += score[i]
+        prediction = p2
+        prob = round(100*(1-prop), 2)
+    # for i in range(len(score)):
+    #     if i % 4 == 0 and int(score[i]) > int(score[i+2]):
+    #         prediction += score[i]
+    #     elif i % 4 == 0 and int(score[i]) < int(score[i+2]):
+    #         prediction += score[i]
+    #     else:
+    #         prediction += score[i]
 
-    return prediction
+    return prediction, prob
 
-p1 = "Marozsan F."
-p2 = "Rublev A."
-surface = 'Clay'
-# location = "Miami" # DON'T USE THIS IN FUTURE
+temp_matches = pd.read_csv('atp_utr_tennis_matches.csv')
+upcoming = pd.read_csv('upcoming.csv')
 
-# data = pd.read_csv('atp_utr_tennis_matches.csv')
-# hard_model = joblib.load('hard_model.sav')
-# clay_model = joblib.load('clay_model.sav')
-# grass_model = joblib.load('grass_model.sav')
+tournaments = {}
+for r in temp_matches.itertuples():
+    if r.tournament not in tournaments.keys():
+        tournaments[r.tournament] = [r.surface, r.best_of]
 
-prediction = predict(p1, p2, surface, best_of=3) # update prompt for user enter best_of
+with open('predictions.csv', 'w', newline='', encoding='utf-8') as csvfile:
+    writer = csv.writer(csvfile)
+    writer.writerow(['tournament', 'p1', 'p1_profit', 'p2', 'p2_profit', 'pred_winner', 'probability'])
+    predictions = []
+    for r in upcoming.itertuples():
+        prediction = ''
+        for player in [r.p1, r.p2]:
+            for i in range(len(player)):
+                if player[i] == ' ':
+                    temp = i
+                    break
+            if player == r.p1:
+                p1 = player[i+1:] + ' ' + player[0] + '.'
+            elif player == r.p2:
+                p2 = player[i+1:] + ' ' + player[0] + '.'
 
+        try:
+            if r.tournament in tournaments.keys():
+                prediction, prob = predict(p1, p2, tournaments[r.tournament][0], best_of=tournaments[r.tournament][1])
+            else:
+                for tourney in tournaments.keys():
+                    if r.tournament in tourney:
+                        prediction, prob = predict(p1, p2, tournaments[r.tournament][0], best_of=tournaments[r.tournament][1])
+                        break
+                if prediction == '':
+                    prediction, prob = predict(p1, p2, 'Hard', best_of=3)
 
+            odds = []
+            for odd in [r.p1_odds, r.p2_odds]:
+                if odd[0] == '+':
+                    odds.append(odd[1:])
+                else:
+                    num = int(odd[1:])
+                    odds.append(round(100*(((num+100)/num)-1), 2))
 
-print(prediction)
-# wvl = []
-# for i in range(len(data)):
-#     if data["p1"][i] == "Alcaraz C.":
-#         if data['p_win'][i] == 0:
-#             wvl.append(1)
-#         else:
-#             wvl.append(0)
-#     elif data["p2"][i] == "Alcaraz C.":
-#         if data['p_win'][i] == 1:
-#             wvl.append(1)
-#         else:
-#             wvl.append(0)
-    
-#     if len(wvl) > 10:
-#         wvl = wvl[1:]
-#         print(wvl)
-       
-# print(wvl)
-# print(sum(wvl)/len(wvl))
+            predictions.append([r.tournament, r.p1, odds[0], r.p2, odds[1], prediction, prob])
+        except:
+            print(f'{r.tournament} | {r.p1} | {odds[0]} | {r.p2} | {odds[1]}')
+            continue
+    writer.writerows(predictions)
+# print(predictions)
 
 '''
 Alcaraz C. Metrics:

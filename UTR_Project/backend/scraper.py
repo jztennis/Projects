@@ -76,19 +76,21 @@ def collect_scores(all_scores):
 ### Loads The Page ###
 def load_page(driver, url):
     driver.get(url)
-    time.sleep(1)
+    time.sleep(1.5)
 ###
 
 ### Scrolls The Page ###
 def scroll_page(driver):
-    previous_height = driver.execute_script("return document.body.scrollHeight")
-    while True:
-        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        time.sleep(0.5)
-        new_height = driver.execute_script("return document.body.scrollHeight")
-        if new_height == previous_height:
-            break
-        previous_height = new_height
+    time.sleep(1)
+    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+###
+
+### Scrolls The Page ###
+def custom_scroll(driver):
+    time.sleep(1)
+    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+    time.sleep(0.25)
+    driver.execute_script("window.scrollBy(0, -300);")
 ###
 
 ### Get UTR Rating ###
@@ -291,8 +293,6 @@ def scrape_player_matches(profile_ids, utr_history, matches, email, password, of
 
 ### Get UTR History ###
 def scrape_utr_history(df, email, password, offset=0, stop=1, writer=None):
-    ids = {'f_name': [], 'l_name': [], 'p_id': []}
-    test = True
 
     # Initialize the Selenium WebDriver (make sure you have the appropriate driver installed)
     driver = webdriver.Chrome()
@@ -302,35 +302,30 @@ def scrape_utr_history(df, email, password, offset=0, stop=1, writer=None):
 
     for i in range(len(df)):
         if i == stop:
-            test = False
             break
         
         try:
             search_url = f"https://app.utrsports.net/profiles/{round(df['p_id'][i+offset])}?t=6"
         except:
-            print(f"{df['f_name'][i]} | {df['l_name'][i]} | {df['p_id'][i]}")
+            print(f"{df['f_name'][i+offset]} | {df['l_name'][i+offset]} | {df['p_id'][i+offset]} \t\t ||| URL Fail")
             continue
 
-        load_page(driver, search_url)
+        try:
+            load_page(driver, search_url)
+        except:
+            print(f"{df['f_name'][i+offset]} | {df['l_name'][i+offset]} | {df['p_id'][i+offset]} \t\t ||| Load Fail")
+            continue
+        # time.sleep(1)
 
-        time.sleep(0.5)
-
-        scroll_page(driver)
+        custom_scroll(driver)
 
         try:
-            time.sleep(1)
+            # time.sleep(0.5)
             show_all = driver.find_element(By.LINK_TEXT, 'Show all')
             show_all.click()
         except:
-            try:
-                time.sleep(2.5)
-                show_all = driver.find_element(By.LINK_TEXT, 'Show all')
-                show_all.click()
-            except:
-                print(f"{df['f_name'][i]} | {df['l_name'][i]} | {df['p_id'][i]}")
-                continue
-
-        time.sleep(1)
+            print(f"{df['f_name'][i+offset]} | {df['l_name'][i+offset]} | {df['p_id'][i+offset]} \t\t ||| Show All Fail")
+            continue
 
         scroll_page(driver)
 
@@ -346,22 +341,14 @@ def scrape_utr_history(df, email, password, offset=0, stop=1, writer=None):
                 continue
             utr = utrs[j].find("div", class_="newStatsTabContent__historyItemRating__GQUXw").text
             utr_date = utrs[j].find("div", class_="newStatsTabContent__historyItemDate__jFJyD").text
-            # print(float(utr))
             if j == 1 and float(utr) < 13:
-                print(f"{df['f_name'][i]} | {df['l_name'][i]} | {df['p_id'][i]}")
+                print(f"{df['f_name'][i+offset]} | {df['l_name'][i+offset]} | {df['p_id'][i+offset]} \t\t ||| UTR<13")
                 break
 
             data_row = [df['f_name'][i+offset], df['l_name'][i+offset], utr_date, utr]
 
             writer.writerow(data_row)
 
-        ids['f_name'].append(df['f_name'][i+offset])
-        ids['l_name'].append(df['l_name'][i+offset])
-        ids['p_id'].append(df['p_id'][i+offset])
-
     # Close the driver
     driver.quit()
-
-    if test:
-        ids.to_csv('profile_id.csv', index=False)
 ###
